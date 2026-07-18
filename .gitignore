@@ -1,0 +1,12 @@
+# Virtual Environment
+env/
+
+# Hidden secrets file
+.env
+
+# Python Cache (unnecessary compiled files)
+__pycache__/
+*.pyc
+
+# Local Django Database (if you ever test with it)
+db.sqlite3
