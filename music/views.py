@@ -1,6 +1,10 @@
 from django.shortcuts import render
+from .models import Track
 
 def home(request):
-    # Right now, this just grabs the HTML file and sends it to the user.
-    # Later, this is where we will fetch the classical music from your database!
-    return render(request, 'music/home.html')
+    all_tracks = Track.objects.select_related('album__artist').all()
+    
+    context = {
+        'tracks': all_tracks
+    }
+    return render(request, 'music/home.html', context)

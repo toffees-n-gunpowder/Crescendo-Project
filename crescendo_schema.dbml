@@ -1,0 +1,166 @@
+// DBML (Database Markup Language) Schema for Crescendo
+// Copy and paste this code directly into https://dbdiagram.io to visualize the Entity-Relationship (ER) Diagram.
+
+Table users {
+  id integer [primary key, increment]
+  username varchar(150) [unique, not null]
+  email varchar(254) [not null]
+  account_type varchar(20) [default: 'listener', note: 'listener or artist']
+  subscription_type varchar(20) [default: 'free', note: 'free or premium']
+  is_staff boolean [default: false]
+  is_superuser boolean [default: false]
+  created_at timestamp [default: `now()`]
+}
+
+Table artists {
+  id integer [primary key, increment]
+  user_id integer [null, unique, note: 'O2O link to users for claimed profiles']
+  name varchar(255) [not null]
+  bio text
+  verified boolean [default: false]
+}
+
+Table albums {
+  id integer [primary key, increment]
+  artist_id integer [not null]
+  title varchar(255) [not null]
+  release_date date [not null]
+  cover_url varchar(500)
+}
+
+Table genres {
+  id integer [primary key, increment]
+  name varchar(100) [unique, not null]
+}
+
+Table eras {
+  id integer [primary key, increment]
+  name varchar(100) [unique, not null, note: 'e.g. 1950s, Baroque, Romantic']
+  description text
+}
+
+Table tracks {
+  id integer [primary key, increment]
+  album_id integer [not null]
+  genre_id integer [null]
+  era_id integer [null]
+  title varchar(255) [not null]
+  duration_sec integer [not null]
+  track_number integer [default: 1]
+}
+
+Table playlists {
+  id integer [primary key, increment]
+  user_id integer [not null]
+  name varchar(255) [not null]
+  is_public boolean [default: true]
+  created_at timestamp [default: `now()`]
+}
+
+Table playlist_tracks {
+  id integer [primary key, increment]
+  playlist_id integer [not null]
+  track_id integer [not null]
+  position integer [default: 1]
+  added_at timestamp [default: `now()`]
+
+  indexes {
+    (playlist_id, track_id) [unique]
+  }
+}
+
+Table personal_groups {
+  id integer [primary key, increment]
+  owner_id integer [not null]
+  name varchar(255) [not null]
+  description text
+  is_public boolean [default: true]
+  created_at timestamp [default: `now()`]
+}
+
+Table group_tracks {
+  id integer [primary key, increment]
+  personal_group_id integer [not null]
+  track_id integer [not null]
+  added_at timestamp [default: `now()`]
+
+  indexes {
+    (personal_group_id, track_id) [unique]
+  }
+}
+
+Table group_playlists {
+  id integer [primary key, increment]
+  personal_group_id integer [not null]
+  playlist_id integer [not null]
+  added_at timestamp [default: `now()`]
+
+  indexes {
+    (personal_group_id, playlist_id) [unique]
+  }
+}
+
+Table group_reviews {
+  id integer [primary key, increment]
+  group_id integer [not null]
+  reviewer_id integer [not null]
+  rating integer [not null, note: '1 to 5 stars']
+  review_text text [not null]
+  created_at timestamp [default: `now()`]
+
+  indexes {
+    (group_id, reviewer_id) [unique]
+  }
+}
+
+Table play_histories {
+  id integer [primary key, increment]
+  user_id integer [not null]
+  track_id integer [not null]
+  played_at timestamp [default: `now()`]
+}
+
+Table follows {
+  id integer [primary key, increment]
+  follower_id integer [not null]
+  artist_id integer [not null]
+  created_at timestamp [default: `now()`]
+
+  indexes {
+    (follower_id, artist_id) [unique]
+  }
+}
+
+Table liked_tracks {
+  id integer [primary key, increment]
+  user_id integer [not null]
+  track_id integer [not null]
+  created_at timestamp [default: `now()`]
+
+  indexes {
+    (user_id, track_id) [unique]
+  }
+}
+
+// Relationships
+Ref: artists.user_id - users.id [delete: set null]
+Ref: albums.artist_id > artists.id [delete: cascade]
+Ref: tracks.album_id > albums.id [delete: cascade]
+Ref: tracks.genre_id > genres.id [delete: set null]
+Ref: tracks.era_id > eras.id [delete: set null]
+Ref: playlists.user_id > users.id [delete: cascade]
+Ref: playlist_tracks.playlist_id > playlists.id [delete: cascade]
+Ref: playlist_tracks.track_id > tracks.id [delete: cascade]
+Ref: personal_groups.owner_id > users.id [delete: cascade]
+Ref: group_tracks.personal_group_id > personal_groups.id [delete: cascade]
+Ref: group_tracks.track_id > tracks.id [delete: cascade]
+Ref: group_playlists.personal_group_id > personal_groups.id [delete: cascade]
+Ref: group_playlists.playlist_id > playlists.id [delete: cascade]
+Ref: group_reviews.group_id > personal_groups.id [delete: cascade]
+Ref: group_reviews.reviewer_id > users.id [delete: cascade]
+Ref: play_histories.user_id > users.id [delete: cascade]
+Ref: play_histories.track_id > tracks.id [delete: cascade]
+Ref: follows.follower_id > users.id [delete: cascade]
+Ref: follows.artist_id > artists.id [delete: cascade]
+Ref: liked_tracks.user_id > users.id [delete: cascade]
+Ref: liked_tracks.track_id > tracks.id [delete: cascade]

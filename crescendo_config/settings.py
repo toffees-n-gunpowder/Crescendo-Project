@@ -45,6 +45,8 @@ INSTALLED_APPS = [
     'music',
 ]
 
+AUTH_USER_MODEL = 'music.User'
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -128,3 +130,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+LOGIN_REDIRECT_URL = 'music:home'
+LOGOUT_REDIRECT_URL = 'music:home'
+LOGIN_URL = 'login'
+
