@@ -58,17 +58,34 @@ class Artist(models.Model):
         return self.name
 
 
+class AlbumCredit(models.Model):
+    """
+    The Junction Table tracking WHO did WHAT on a specific Album.
+    """
+    ROLE_CHOICES = (
+        ('primary', 'Primary Artist'),
+        ('featured', 'Featured Artist'),
+        ('producer', 'Producer'),
+    )
+    album = models.ForeignKey('Album', on_delete=models.CASCADE)
+    artist = models.ForeignKey(Artist, on_delete=models.CASCADE)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='primary')
+
+    def __str__(self):
+        return f"{self.artist.name} ({self.get_role_display()}) on Album: {self.album.title}"
+
+
 class Album(models.Model):
     """
-    Represents a musical album released by an Artist.
+    Represents a musical album, capable of having multiple contributing artists.
     """
-    artist = models.ForeignKey(Artist, on_delete=models.CASCADE, related_name='albums')
     title = models.CharField(max_length=255)
+    artists = models.ManyToManyField(Artist, through='AlbumCredit', related_name='albums')
     release_date = models.DateField()
     cover_url = models.URLField(max_length=500, blank=True, default='')
 
     def __str__(self):
-        return f"{self.title} by {self.artist.name}"
+        return self.title
 
 
 class Genre(models.Model):
@@ -92,14 +109,34 @@ class Era(models.Model):
         return self.name
 
 
+class TrackCredit(models.Model):
+    """
+    The Junction Table tracking WHO did WHAT on a specific Track.
+    """
+    ROLE_CHOICES = (
+        ('primary', 'Primary Artist'),
+        ('featured', 'Featured Artist'),
+        ('producer', 'Producer'),
+        ('writer', 'Songwriter'),
+    )
+    track = models.ForeignKey('Track', on_delete=models.CASCADE)
+    artist = models.ForeignKey(Artist, on_delete=models.CASCADE)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='primary')
+
+    def __str__(self):
+        return f"{self.artist.name} ({self.get_role_display()}) on Track: {self.track.title}"
+
+
 class Track(models.Model):
     """
-    Individual playable audio track linked to an Album, Genre, and optional Era.
+    Individual playable audio track linked to an Album, Genre, Era, and Multiple Artists.
     """
     album = models.ForeignKey(Album, on_delete=models.CASCADE, related_name='tracks')
+    artists = models.ManyToManyField(Artist, through='TrackCredit', related_name='tracks')
     genre = models.ForeignKey(Genre, on_delete=models.SET_NULL, null=True, blank=True, related_name='tracks')
     era = models.ForeignKey(Era, on_delete=models.SET_NULL, null=True, blank=True, related_name='tracks')
     title = models.CharField(max_length=255)
+    audio_file = models.URLField(max_length=500, blank=True, default='')
     duration_sec = models.PositiveIntegerField(help_text="Track duration in seconds")
     track_number = models.PositiveIntegerField(default=1)
 
@@ -107,7 +144,7 @@ class Track(models.Model):
         ordering = ['album', 'track_number']
 
     def __str__(self):
-        return f"{self.title} - {self.album.artist.name}"
+        return f"{self.title} (from {self.album.title})"
 
     @property
     def formatted_duration(self):
@@ -148,19 +185,14 @@ class PlaylistTrack(models.Model):
 
 class PersonalGroup(models.Model):
     name = models.CharField(max_length=100)
-    description = models.TextField(blank = True, default='')
+    description = models.TextField(blank=True, default='')
     is_public = models.BooleanField(default=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # Add this exact block below your fields
     @property
     def average_rating(self):
-        # 1. Look at all reviews linked to this specific group
-        # 2. Calculate the average of the 'rating' column
         avg = self.groupreview_set.aggregate(Avg('rating'))['rating__avg']
-        
-        # 3. If there are no reviews yet, return 0.0. Otherwise, round to 1 decimal place.
         if avg is not None:
             return round(avg, 1)
         return 0.0

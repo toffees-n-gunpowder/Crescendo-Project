@@ -2,9 +2,11 @@ from django.shortcuts import render
 from .models import Track
 
 def home(request):
-    all_tracks = Track.objects.select_related('album__artist').all()
+    # select_related is for ForeignKeys (album, genre, era)
+    # prefetch_related is for ManyToManyFields (artists)
+    tracks = Track.objects.select_related('album', 'genre', 'era').prefetch_related('artists').all()
     
     context = {
-        'tracks': all_tracks
+        'tracks': tracks
     }
     return render(request, 'music/home.html', context)
