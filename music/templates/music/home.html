@@ -1,98 +1,353 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crescendo | Home</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        :root {
+            --spotify-black: #121212;
+            --spotify-card: #181818;
+            --spotify-card-hover: #282828;
+            --spotify-green: #1db954;
+            --spotify-green-hover: #1ed760;
+            --spotify-text-subdued: #b3b3b3;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--spotify-black);
+            color: #ffffff;
+            min-height: 100vh;
+        }
+
+        /* 1. Navigation Bar */
+        .auth-bar {
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 1px solid #282828;
+        }
+
+        .brand-logo {
+            font-weight: 800;
+            font-size: 1.5rem;
+            color: var(--spotify-green);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .brand-logo:hover {
+            color: var(--spotify-green-hover);
+        }
+
+        /* Custom Buttons */
+        .btn-spotify {
+            background-color: var(--spotify-green);
+            color: #000000;
+            font-weight: 700;
+            border-radius: 50px;
+            padding: 0.5rem 1.5rem;
+            border: none;
+            transition: all 0.2s;
+        }
+        .btn-spotify:hover {
+            background-color: var(--spotify-green-hover);
+            color: #000000;
+            transform: scale(1.02);
+        }
+        
+        .btn-outline-spotify {
+            background-color: transparent;
+            color: #ffffff;
+            font-weight: 700;
+            border-radius: 50px;
+            padding: 0.5rem 1.5rem;
+            border: 1px solid #727272;
+            transition: all 0.2s;
+        }
+        .btn-outline-spotify:hover {
+            border-color: #ffffff;
+            color: #ffffff;
+        }
+
+        /* 2. Hero & Search */
+        .search-input {
+            background-color: #242424;
+            border: 1px solid transparent;
+            color: white;
+            border-radius: 50px;
+            padding: 0.75rem 1.5rem;
+        }
+        .search-input:focus {
+            background-color: #2a2a2a;
+            border-color: var(--spotify-text-subdued);
+            color: white;
+            box-shadow: none;
+        }
+
+        /* 3. Track Cards */
+        .track-card {
+            background-color: var(--spotify-card);
+            border: none;
+            border-radius: 8px;
+            padding: 1rem;
+            transition: background-color 0.3s ease;
+            height: 100%;
+        }
+        .track-card:hover {
+            background-color: var(--spotify-card-hover);
+        }
+        .cover-image-wrapper {
+            position: relative;
+            width: 100%;
+            padding-top: 100%; /* 1:1 Aspect Ratio */
+            margin-bottom: 1rem;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .cover-image-wrapper img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .track-title {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 0.2rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .track-artist {
+            color: var(--spotify-text-subdued);
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* Audio Player */
+        audio { 
+            width: 100%; 
+            height: 35px; 
+            outline: none; 
+        }
+        audio::-webkit-media-controls-panel {
+            background-color: #282828;
+        }
+        audio::-webkit-media-controls-current-time-display,
+        audio::-webkit-media-controls-time-remaining-display {
+            color: #ffffff;
+        }
+
+        /* Typography Utils */
+        .text-green { color: var(--spotify-green); }
+        .text-subdued { color: var(--spotify-text-subdued); }
+    </style>
 </head>
-<body class="bg-dark text-light">
-    <div class="container mt-5">
-        <h1 class="display-4 text-info fw-bold">Crescendo</h1>
-        <p class="lead text-secondary">Your personal music library.</p>
-        <hr class="border-secondary">
+<body>
+
+    <!-- 1. Top Navigation & Auth Bar -->
+    <div class="auth-bar shadow-sm mb-5">
+        <a href="{% url 'home' %}" class="brand-logo">
+            <i class="fa-solid fa-circle-play"></i> Crescendo
+        </a>
+
+        {% if user.is_authenticated %}
+            <!-- What a logged-in user sees -->
+            <div class="d-flex align-items-center">
+                
+                <!-- THE NEW PLAYLISTS BUTTON -->
+                <a href="{% url 'playlists' %}" class="btn btn-outline-spotify btn-sm me-2 border-0 text-white">
+                    <i class="fa-solid fa-list"></i> Playlists
+                </a>
+
+                <!-- THE EXISTING MY LIBRARY BUTTON -->
+                <a href="{% url 'library' %}" class="btn btn-outline-spotify btn-sm me-4 border-0 text-green">
+                    <i class="fa-solid fa-book-open"></i> My Library
+                </a>
+                
+                <span class="me-4 text-subdued fw-bold">Hi, <span class="text-white">{{ user.username }}</span></span>
+                <form method="POST" action="{% url 'logout' %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-spotify btn-sm">Log Out</button>
+                </form>
+            </div>
+        {% else %}
+            <!-- What a logged-out guest sees -->
+            <div>
+                <a href="{% url 'register' %}" class="text-subdued text-decoration-none fw-bold me-4 custom-hover">Sign Up</a>
+                <a href="{% url 'login' %}" class="btn btn-spotify btn-sm">Log In</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="container mb-5 pb-5">
         
-        <h3 class="mb-4 mt-4">Featured Tracks</h3>
-        
-        <div class="row">
+        <!-- 2. Hero Section & Search Bar -->
+        <div class="row mb-5 text-center">
+            <div class="col-md-8 offset-md-2">
+                <h1 class="display-5 fw-bold mb-3">Discover timeless music.</h1>
+                <p class="text-subdued mb-4">Search across genres, eras, and artists.</p>
+                
+                <form method="GET" action="" class="d-flex justify-content-center align-items-center gap-2 mt-2">
+                    <input class="form-control search-input w-75" 
+                           type="search" 
+                           placeholder="What do you want to listen to?" 
+                           name="q" 
+                           value="{{ request.GET.q }}">
+                    <button class="btn btn-spotify py-2 px-4" type="submit">Search</button>
+                    {% if request.GET.q %}
+                        <a href="/" class="btn btn-outline-spotify py-2">Clear</a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        <!-- 3. Track Grid -->
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-4">
             {% for track in tracks %}
-                <div class="col-md-6 mb-4">
-                    <div class="card bg-secondary text-white border-dark shadow-sm h-100">
-                        <div class="row g-0 h-100">
-                            <!-- Album Cover -->
-                            <div class="col-md-4">
-                                {% if track.album.cover_url %}
-                                    <!-- Added loading="lazy" here -->
-                                    <img src="{{ track.album.cover_url }}" loading="lazy" class="img-fluid rounded-start h-100" style="object-fit: cover;" alt="Cover">
-                                {% else %}
-                                    <div class="bg-dark h-100 d-flex justify-content-center align-items-center rounded-start">
-                                        <span class="text-muted">No Cover</span>
+                <div class="col">
+                    <div class="track-card d-flex flex-column">
+                        
+                        <!-- Album Cover -->
+                        <div class="cover-image-wrapper">
+                            {% if track.album and track.album.cover_url %}
+                                <img src="{{ track.album.cover_url }}" alt="{{ track.title }} Cover">
+                            {% else %}
+                                <!-- Fallback gray square if no image exists -->
+                                <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary">
+                                    <i class="fa-solid fa-music fa-2x text-dark"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Track Info & Like Button -->
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="text-truncate pe-2">
+                                <h5 class="track-title mb-0" title="{{ track.title }}">{{ track.title }}</h5>
+                                <p class="track-artist mt-1 mb-0 text-truncate">
+                                    {% for artist in track.artists.all %}
+                                        {{ artist.name }}{% if not forloop.last %}, {% endif %}
+                                    {% empty %}
+                                        Unknown Artist
+                                    {% endfor %}
+                                </p>
+                            </div>
+                            <!-- Action Buttons (Like & Add to Playlist) -->
+                            <div class="d-flex align-items-center gap-2">
+                                {% if user.is_authenticated %}
+                                    
+                                    <!-- NEW: Add to Playlist Dropdown -->
+                                    <div class="dropdown">
+                                        <button class="btn btn-link p-0 border-0 shadow-none text-decoration-none" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Add to Playlist">
+                                            <i class="fa-solid fa-plus text-subdued fs-5"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-dark shadow">
+                                            {% if user_playlists %}
+                                                {% for playlist in user_playlists %}
+                                                    <li>
+                                                        <form method="POST" action="{% url 'add_to_playlist' track.id playlist.id %}">
+                                                            {% csrf_token %}
+                                                            <button type="submit" class="dropdown-item">{{ playlist.name }}</button>
+                                                        </form>
+                                                    </li>
+                                                {% endfor %}
+                                            {% else %}
+                                                <li><span class="dropdown-item text-muted">No playlists yet</span></li>
+                                            {% endif %}
+                                        </ul>
                                     </div>
+
+                                    <!-- EXISTING: The Heart Button -->
+                                    <form method="POST" action="{% url 'toggle_like' track.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-link p-0 border-0 shadow-none text-decoration-none">
+                                            {% if track.id in liked_track_ids %}
+                                                <i class="fa-solid fa-heart text-green fs-5"></i>
+                                            {% else %}
+                                                <i class="fa-regular fa-heart text-subdued fs-5"></i>
+                                            {% endif %}
+                                        </button>
+                                    </form>
+                                    
+                                {% else %}
+                                    <!-- Logged out view -->
+                                    <a href="{% url 'login' %}" class="text-subdued text-decoration-none">
+                                        <i class="fa-regular fa-heart fs-5"></i>
+                                    </a>
                                 {% endif %}
                             </div>
-                            
-                            <!-- Track Info & Player -->
-                            <div class="col-md-8">
-                                <div class="card-body d-flex flex-column justify-content-center">
-                                    <h5 class="card-title text-info mb-1">{{ track.title }}</h5>
-                                    
-                                    <p class="card-text mb-2">
-                                        <small>by 
-                                            <strong>
-                                                <!-- Loop through all artists attached to this track -->
-                                                {% for artist in track.artists.all %}
-                                                    {{ artist.name }}{% if not forloop.last %}, {% endif %}
-                                                {% empty %}
-                                                    Unknown Artist
-                                                {% endfor %}
-                                            </strong>
-                                        </small>
-                                    </p>
-                                    
-                                    <!-- Badges for Genre and Era -->
-                                    <p class="card-text mb-3">
-                                        {% if track.genre %}<span class="badge bg-dark">{{ track.genre.name }}</span>{% endif %}
-                                        {% if track.era %}<span class="badge bg-dark border border-secondary">{{ track.era.name }}</span>{% endif %}
-                                    </p>
-                                    
-                                    <!-- HTML5 Audio Player -->
-                                    {% if track.audio_file %}
-                                        <audio controls preload="none" class="w-100 mt-auto" style="height: 40px;">
-                                            <source src="{{ track.audio_file }}" type="audio/mpeg">
-                                            Your browser does not support the audio element.
-                                        </audio>
-                                    {% else %}
-                                        <p class="text-warning small mt-auto mb-0">No audio available</p>
-                                    {% endif %}
-                                </div>
-                            </div>
                         </div>
+                        
+                        <!-- Audio Player -->
+                        <div class="mt-auto">
+                            {% if track.audio_file %}
+                                <audio controls preload="none">
+                                    <source src="{{ track.audio_file }}" type="audio/mpeg">
+                                    Your browser does not support the audio element.
+                                </audio>
+                            {% endif %}
+                        </div>
+                        
                     </div>
                 </div>
             {% empty %}
-                <div class="col-12">
-                    <div class="alert alert-warning" role="alert">
-                        Database is currently empty. Please run the seed script!
-                    </div>
+                <!-- Empty State -->
+                <div class="col-12 text-center text-subdued mt-5 w-100">
+                    <i class="fa-solid fa-magnifying-glass fa-3x mb-3 text-secondary"></i>
+                    <h4>No tracks found</h4>
+                    <p>Try searching for a different artist, genre, or track name.</p>
                 </div>
             {% endfor %}
         </div>
 
-        <!-- Added Pagination Controls here -->
-        <div class="d-flex justify-content-center mt-4 mb-5">
-            <nav>
-                <ul class="pagination pagination-sm">
+        <!-- 4. Pagination -->
+        {% if tracks.has_other_pages %}
+            <div class="d-flex justify-content-center mt-5">
+                <div class="btn-group">
                     {% if tracks.has_previous %}
-                        <li class="page-item"><a class="page-link bg-secondary text-light border-dark" href="?page={{ tracks.previous_page_number }}">Previous</a></li>
+                        <a href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="btn btn-outline-spotify">&laquo; First</a>
+                        <a href="?page={{ tracks.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="btn btn-outline-spotify">Previous</a>
                     {% endif %}
-                    
-                    <li class="page-item disabled"><span class="page-link bg-dark text-light border-dark">Page {{ tracks.number }} of {{ tracks.paginator.num_pages }}</span></li>
-                    
+
+                    <span class="btn btn-outline-spotify disabled text-white" style="border-color: #727272; opacity: 1;">
+                        Page {{ tracks.number }} of {{ tracks.paginator.num_pages }}
+                    </span>
+
                     {% if tracks.has_next %}
-                        <li class="page-item"><a class="page-link bg-secondary text-light border-dark" href="?page={{ tracks.next_page_number }}">Next</a></li>
+                        <a href="?page={{ tracks.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="btn btn-outline-spotify">Next</a>
+                        <a href="?page={{ tracks.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="btn btn-outline-spotify">Last &raquo;</a>
                     {% endif %}
-                </ul>
-            </nav>
-        </div>
+                </div>
+            </div>
+        {% endif %}
 
     </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
