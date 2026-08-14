@@ -189,7 +189,7 @@
                     <i class="fa-solid fa-book-open"></i> My Library
                 </a>
                 
-                <span class="me-4 text-subdued fw-bold">Hi, <span class="text-white">{{ user.username }}</span></span>
+                <span class="me-4 text-subdued fw-bold">Hi, <a href="{% url 'dashboard' %}" class="text-white text-decoration-none custom-hover">{{ user.username }}</a></span>
                 <form method="POST" action="{% url 'logout' %}" style="display:inline;">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-outline-spotify btn-sm">Log Out</button>
@@ -223,6 +223,21 @@
                         <a href="/" class="btn btn-outline-spotify py-2">Clear</a>
                     {% endif %}
                 </form>
+
+                <!-- NEW: Genre Filter Buttons -->
+                <div class="d-flex justify-content-center gap-2 mt-4 flex-wrap">
+                    <a href="{% url 'home' %}" class="btn {% if not request.GET.genre and not request.GET.q %}btn-spotify{% else %}btn-outline-spotify{% endif %} rounded-pill px-4 fw-bold">All</a>
+                    
+                    <a href="?genre=Pop" class="btn {% if request.GET.genre == 'Pop' %}btn-spotify{% else %}btn-outline-spotify{% endif %} rounded-pill px-4 fw-bold">Pop</a>
+                    
+                    <a href="?genre=Hip-Hop" class="btn {% if request.GET.genre == 'Hip-Hop' %}btn-spotify{% else %}btn-outline-spotify{% endif %} rounded-pill px-4 fw-bold">Hip-Hop</a>
+                    
+                    <a href="?genre=Electronic" class="btn {% if request.GET.genre == 'Electronic' %}btn-spotify{% else %}btn-outline-spotify{% endif %} rounded-pill px-4 fw-bold">Electronic</a>
+                    
+                    <a href="?genre=Rock" class="btn {% if request.GET.genre == 'Rock' %}btn-spotify{% else %}btn-outline-spotify{% endif %} rounded-pill px-4 fw-bold">Rock</a>
+                    
+                    <a href="?genre=Jazz" class="btn {% if request.GET.genre == 'Jazz' %}btn-spotify{% else %}btn-outline-spotify{% endif %} rounded-pill px-4 fw-bold">Jazz</a>
+                </div>
             </div>
         </div>
 

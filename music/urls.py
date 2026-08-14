@@ -15,4 +15,9 @@ urlpatterns = [
     path('library/', views.my_library, name='library'),
     path('playlists/', views.playlists, name='playlists'),
     path('playlist/add/<int:track_id>/<int:playlist_id>/', views.add_to_playlist, name='add_to_playlist'),
+    path('playlist/<int:playlist_id>/', views.playlist_detail, name='playlist_detail'),
+    path('playlist/<int:playlist_id>/remove/<int:track_id>/', views.remove_from_playlist, name='remove_from_playlist'),
+    path('playlist/<int:playlist_id>/delete/', views.delete_playlist, name='delete_playlist'),
+    path('playlist/<int:playlist_id>/rename/', views.rename_playlist, name='rename_playlist'),
+    path('dashboard/', views.dashboard, name='dashboard'),
 ]

@@ -22,6 +22,12 @@ def home(request):
     # 1. Fetch all tracks
     track_list = Track.objects.prefetch_related('artists').all()
     
+    # NEW: 2. Check if a genre button was clicked
+    genre_query = request.GET.get('genre')
+    if genre_query:
+        # Filter tracks where the connected genre's name exactly matches the button
+        track_list = track_list.filter(genre__name__iexact=genre_query)
+        
     # 2. Search logic
     query = request.GET.get('q')
     if query:
@@ -159,3 +165,76 @@ def add_to_playlist(request, track_id, playlist_id):
             
     next_url = request.META.get('HTTP_REFERER', 'home')
     return redirect(next_url)
+
+@login_required(login_url='login')
+def playlist_detail(request, playlist_id):
+    # 1. Get the specific playlist, ensuring it belongs to the logged-in user
+    playlist = get_object_or_404(Playlist, id=playlist_id, user=request.user)
+    
+    # 2. Get all the tracks in this playlist, ordered by their position
+    playlist_tracks = PlaylistTrack.objects.filter(playlist=playlist).select_related('track').order_by('position')
+    
+    # 3. Extract the actual Track objects so the HTML can easily read them
+    tracks = [pt.track for pt in playlist_tracks]
+    
+    # 4. We still want the heart icons to work, so fetch the liked track IDs
+    liked_track_ids = LikedTrack.objects.filter(user=request.user).values_list('track_id', flat=True)
+    
+    context = {
+        'playlist': playlist,
+        'tracks': tracks,
+        'liked_track_ids': liked_track_ids,
+    }
+    return render(request, 'music/playlist_detail.html', context)
+
+@login_required(login_url='login')
+def remove_from_playlist(request, playlist_id, track_id):
+    if request.method == 'POST':
+        # 1. Ensure this playlist belongs to the logged-in user
+        playlist = get_object_or_404(Playlist, id=playlist_id, user=request.user)
+        track = get_object_or_404(Track, id=track_id)
+        
+        # 2. Find the specific record linking this track to this playlist and delete it
+        PlaylistTrack.objects.filter(playlist=playlist, track=track).delete()
+            
+    # Redirect back to the same playlist page
+    return redirect('playlist_detail', playlist_id=playlist.id)
+
+@login_required(login_url='login')
+def delete_playlist(request, playlist_id):
+    if request.method == 'POST':
+        # 1. Find the playlist and ensure it belongs to this user
+        playlist = get_object_or_404(Playlist, id=playlist_id, user=request.user)
+        # 2. Delete it from the database
+        playlist.delete()
+        
+    # 3. Send them back to the main Playlists hub
+    return redirect('playlists')
+
+@login_required(login_url='login')
+def rename_playlist(request, playlist_id):
+    if request.method == 'POST':
+        playlist = get_object_or_404(Playlist, id=playlist_id, user=request.user)
+        new_name = request.POST.get('name')
+        
+        # If they typed a name, update it and save to the database
+        if new_name:
+            playlist.name = new_name
+            playlist.save()
+            
+    # Send them right back to the playlist they were just looking at
+    return redirect('playlist_detail', playlist_id=playlist.id)
+
+@login_required(login_url='login')
+def dashboard(request):
+    # 1. Count how many tracks the user has liked
+    liked_count = LikedTrack.objects.filter(user=request.user).count()
+    
+    # 2. Count how many playlists the user has created
+    playlist_count = Playlist.objects.filter(user=request.user).count()
+    
+    context = {
+        'liked_count': liked_count,
+        'playlist_count': playlist_count,
+    }
+    return render(request, 'music/dashboard.html', context)

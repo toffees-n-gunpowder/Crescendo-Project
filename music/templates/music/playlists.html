@@ -111,12 +111,15 @@
         <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-4">
             {% for playlist in playlists %}
                 <div class="col">
-                    <div class="playlist-card d-flex flex-column justify-content-center">
-                        <i class="fa-solid fa-music playlist-icon"></i>
-                        <h5 class="fw-bold mb-1">{{ playlist.name }}</h5>
-                        <p class="text-subdued small mb-2">{{ playlist.playlist_tracks.count }} tracks</p>
-                        <p class="text-subdued" style="font-size: 0.75rem;">Created {{ playlist.created_at|date:"M d, Y" }}</p>
-                    </div>
+                    <!-- NEW: Wrap the card in a clickable anchor tag -->
+                    <a href="{% url 'playlist_detail' playlist.id %}" class="text-decoration-none text-white">
+                        <div class="playlist-card d-flex flex-column justify-content-center">
+                            <i class="fa-solid fa-music playlist-icon"></i>
+                            <h5 class="fw-bold mb-1">{{ playlist.name }}</h5>
+                            <p class="text-subdued small mb-2">{{ playlist.playlist_tracks.count }} tracks</p>
+                            <p class="text-subdued" style="font-size: 0.75rem;">Created {{ playlist.created_at|date:"M d, Y" }}</p>
+                        </div>
+                    </a>
                 </div>
             {% empty %}
                 <!-- Empty State -->
