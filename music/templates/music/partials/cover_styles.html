@@ -1,0 +1,96 @@
+{% comment %}
+Styling for cover.html. Include once per page, inside or after <head>.
+
+The goal is cohesion: Jamendo art is user-uploaded and wildly inconsistent in
+palette, crop and quality, so a grid of raw covers reads as noise. Every tile
+gets the same square crop, warm vignette and soft border, which pulls the wall
+together without hiding the artwork.
+{% endcomment %}
+
+<style>
+    .cover-image-wrapper {
+        position: relative;
+        width: 100%;
+        padding-top: 100%;            /* locks every tile to a square */
+        margin-bottom: 0.9rem;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+        background: #23201d;
+        isolation: isolate;
+    }
+
+    /* --- Genre-themed backdrop, always painted underneath the art --------- */
+    .cover-fallback {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        color: rgba(255, 255, 255, 0.82);
+    }
+    .cover-fallback-icon {
+        font-size: 1.9rem;
+        opacity: 0.85;
+    }
+    .cover-fallback-initials {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        opacity: 0.65;
+    }
+
+    /* Warm, muted, low-contrast pairs - cozy rather than neon */
+    .cover-theme-classical { background: linear-gradient(150deg, #6b5335, #3a2c1d); }
+    .cover-theme-jazz      { background: linear-gradient(150deg, #5c3550, #2e1c2b); }
+    .cover-theme-rock      { background: linear-gradient(150deg, #7a4230, #3a1f18); }
+    .cover-theme-metal     { background: linear-gradient(150deg, #414a55, #20262d); }
+    .cover-theme-electronic{ background: linear-gradient(150deg, #2f5f68, #17313a); }
+    .cover-theme-ambient   { background: linear-gradient(150deg, #4a4a72, #26263e); }
+    .cover-theme-hiphop    { background: linear-gradient(150deg, #7a5320, #3d2a12); }
+    .cover-theme-folk      { background: linear-gradient(150deg, #4c6141, #253023); }
+    .cover-theme-pop       { background: linear-gradient(150deg, #7d4055, #3d1f2b); }
+    .cover-theme-soundtrack{ background: linear-gradient(150deg, #4a4034, #26211b); }
+    .cover-theme-default   { background: linear-gradient(150deg, #4f4a45, #282523); }
+
+    /* --- The real artwork ------------------------------------------------ */
+    .cover-art {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: 1;
+        /* Take the edge off clashing user-uploaded palettes so the grid reads
+           as one surface instead of a patchwork. */
+        filter: saturate(0.92) contrast(1.02) brightness(0.97);
+        transition: transform 0.45s ease, filter 0.3s ease;
+    }
+    .track-card:hover .cover-art,
+    .genre-card:hover .cover-art {
+        transform: scale(1.045);
+        filter: saturate(1) contrast(1.03) brightness(1);
+    }
+
+    /* A broken or missing image simply reveals the themed backdrop */
+    .cover-art-failed { display: none; }
+
+    /* --- Warm vignette that unifies the wall ----------------------------- */
+    .cover-sheen {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        pointer-events: none;
+        background:
+            linear-gradient(180deg, rgba(255, 236, 210, 0.05) 0%, rgba(0, 0, 0, 0) 45%),
+            radial-gradient(120% 100% at 50% 0%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.42) 100%);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+        border-radius: 10px;
+    }
+
+    /* Play button must sit above art, sheen and backdrop */
+    .play-overlay { z-index: 3; }
+</style>

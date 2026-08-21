@@ -91,6 +91,11 @@ DATABASES = {
         'OPTIONS': {
             'sslmode': 'require',
         },
+        # The Neon endpoint is the pooled one (-pooler), i.e. PgBouncer in
+        # transaction mode, which cannot hold named cursors across statements.
+        # Without this, QuerySet.iterator() dies with
+        # "cursor _django_curs_... does not exist".
+        'DISABLE_SERVER_SIDE_CURSORS': True,
     }
 }
 
@@ -130,6 +135,24 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# Django's ERROR level tags messages as "error", but Bootstrap's class is
+# "alert-danger" - remap so {{ message.tags }} renders correctly in templates.
+from django.contrib.messages import constants as message_constants
+
+MESSAGE_TAGS = {
+    message_constants.DEBUG: 'secondary',
+    message_constants.INFO: 'info',
+    message_constants.SUCCESS: 'success',
+    message_constants.WARNING: 'warning',
+    message_constants.ERROR: 'danger',
+}
+
+# --- Jamendo API (https://developer.jamendo.com) ---
+# Client ID lives in .env so it is never committed. Falls back to the public
+# demo ID so a fresh clone can still seed without extra setup.
+JAMENDO_CLIENT_ID = os.getenv('JAMENDO_CLIENT_ID', '33ec4882')
+JAMENDO_API_BASE = 'https://api.jamendo.com/v3.0'
 
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'

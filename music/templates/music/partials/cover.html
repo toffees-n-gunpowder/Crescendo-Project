@@ -1,0 +1,35 @@
+{% load music_extras %}{% comment %}
+One album-art tile.
+
+    {% include "music/partials/cover.html" with track=track %}
+
+Renders a genre-themed backdrop with the track's initials, then lays the real
+artwork over it. If the image is missing, slow or broken, the backdrop is what
+you see - so a tile is never an empty grey box.
+
+Pass show_play=False to omit the play button (e.g. on non-playable lists).
+{% endcomment %}
+
+<div class="cover-image-wrapper cover-theme-{{ track.genre.name|genre_theme }}">
+
+    <span class="cover-fallback" aria-hidden="true">
+        <i class="{{ track.genre.name|genre_icon }} cover-fallback-icon"></i>
+        <span class="cover-fallback-initials">{{ track.title|initials }}</span>
+    </span>
+
+    {% if track.album.cover_url %}
+        <img src="{{ track.album.cover_url|cover_size:400 }}"
+             alt="{{ track.title }} cover art"
+             loading="lazy"
+             class="cover-art"
+             onerror="this.classList.add('cover-art-failed')">
+    {% endif %}
+
+    <span class="cover-sheen" aria-hidden="true"></span>
+
+    {% if track.audio_file and show_play|default_if_none:True %}
+        <button type="button" class="play-overlay" title="Play {{ track.title }}">
+            <i class="fa-solid fa-play"></i>
+        </button>
+    {% endif %}
+</div>

@@ -1,48 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Log In - Crescendo</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
     <style>
-        body { background-color: #121212; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; }
-        .auth-card { background-color: #181818; padding: 2.5rem; border-radius: 8px; width: 100%; max-width: 400px; }
-        .form-control { background-color: #242424; border: none; color: white; margin-bottom: 1rem; padding: 0.75rem; }
-        .form-control:focus { background-color: #2a2a2a; color: white; box-shadow: none; border: 1px solid #535353; }
-        label { margin-bottom: 0.4rem; font-weight: 500; font-size: 0.9rem; color: #b3b3b3; }
+        :root {
+            --spotify-black: #121212;
+            --spotify-card: #181818;
+            --spotify-green: #1db954;
+            --spotify-green-hover: #1ed760;
+            --spotify-text-subdued: #b3b3b3;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--spotify-black);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .auth-card {
+            background-color: var(--spotify-card);
+            padding: 2.5rem;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .brand-logo {
+            font-weight: 800;
+            font-size: 1.4rem;
+            color: var(--spotify-green);
+            text-decoration: none;
+        }
+        .brand-logo:hover { color: var(--spotify-green-hover); }
+
+        .form-control {
+            background-color: #242424;
+            border: 1px solid transparent;
+            color: #ffffff;
+            padding: 0.75rem;
+        }
+        .form-control:focus {
+            background-color: #2a2a2a;
+            color: #ffffff;
+            box-shadow: none;
+            border-color: #535353;
+        }
+
+        label {
+            margin-bottom: 0.4rem;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--spotify-text-subdued);
+        }
+
+        .btn-spotify {
+            background-color: var(--spotify-green);
+            color: #000000;
+            font-weight: 700;
+            border-radius: 50px;
+            border: none;
+            padding: 0.7rem;
+            transition: all 0.2s;
+        }
+        .btn-spotify:hover {
+            background-color: var(--spotify-green-hover);
+            color: #000000;
+        }
+
+        .signup-panel {
+            background-color: #202020;
+            border: 1px dashed #3e3e3e;
+            border-radius: 10px;
+            padding: 1.25rem;
+        }
+
+        .text-subdued { color: var(--spotify-text-subdued); }
+
+        ul.errorlist {
+            color: #ff6b6b;
+            list-style: none;
+            padding-left: 0;
+            font-size: 0.8rem;
+            margin: 0.25rem 0 0;
+        }
+
+        .helptext { display: none; }
     </style>
 </head>
 <body>
+
     <div class="auth-card shadow-lg">
-        <h2 class="text-center fw-bold mb-4 text-white">Log in to Crescendo</h2>
-        
-        {% if form.errors %}
-            <div class="alert alert-danger py-2 small text-center" style="background-color: #e91429; border: none; color: white;">
-                Your username and password didn't match. Please try again.
+
+        <div class="text-center mb-4">
+            <a href="{% url 'home' %}" class="brand-logo">
+                <i class="fa-solid fa-circle-play"></i> Crescendo
+            </a>
+            <h1 class="h4 fw-bold mt-3 mb-1">Log in to Crescendo</h1>
+            <p class="text-subdued small mb-0">Pick up where you left off.</p>
+        </div>
+
+        <!-- Flash messages: covers the "account created, now log in" handoff -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} py-2 px-3 small mb-3">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% if unknown_user %}
+            <!-- The username does not exist yet: steer them to Sign Up rather
+                 than letting them guess at a password that was never set. -->
+            <div class="signup-panel text-center mb-4">
+                <i class="fa-solid fa-user-plus text-success fs-4 mb-2"></i>
+                <p class="mb-2 small">
+                    We could not find an account for
+                    <strong>{{ attempted_username }}</strong>.
+                </p>
+                <p class="text-subdued small mb-3">New to Crescendo? Create an account first, then log in here.</p>
+                <a href="{% url 'register' %}" class="btn btn-spotify w-100">Sign Up Free</a>
             </div>
         {% endif %}
 
-        <form method="POST">
+        <form method="POST" novalidate>
             {% csrf_token %}
-            
-            <!-- Django built-in fields loop with bootstrap formatting -->
+
             {% for field in form %}
-                <div class="mb-2">
+                <div class="mb-3">
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                     {{ field }}
+                    {{ field.errors }}
                 </div>
             {% endfor %}
 
-            <button type="submit" class="btn btn-success w-100 rounded-pill fw-bold mt-4 py-2" style="background-color: #1db954; border: none;">Log In</button>
+            <button type="submit" class="btn btn-spotify w-100 mt-2">Log In</button>
         </form>
-        
-        <div class="text-center mt-4 small text-muted">
-            Don't have an account? <a href="{% url 'register' %}" class="text-white fw-bold text-decoration-none">Sign Up</a>
+
+        <div class="border-top border-secondary border-opacity-25 pt-3 mt-4 text-center">
+            <p class="text-subdued small mb-0">
+                Don't have an account?
+                <a href="{% url 'register' %}" class="text-success fw-semibold text-decoration-none ms-1">Sign up for free</a>
+            </p>
         </div>
     </div>
 
-    <!-- Quick script to dynamically make Django widgets look like nice Bootstrap inputs -->
     <script>
-        document.querySelectorAll('input').forEach(el => el.classList.add('form-control'));
+        // Django renders plain <input> tags; give them the Bootstrap look.
+        document.querySelectorAll('form input').forEach(el => {
+            if (el.type !== 'hidden') el.classList.add('form-control');
+        });
     </script>
 </body>
 </html>

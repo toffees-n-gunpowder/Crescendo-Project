@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+{% load music_extras %}<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crescendo | Home</title>
-    
+
     <!-- Google Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -52,7 +52,7 @@
             align-items: center;
             gap: 0.5rem;
         }
-        
+
         .brand-logo:hover {
             color: var(--spotify-green-hover);
         }
@@ -72,7 +72,7 @@
             color: #000000;
             transform: scale(1.02);
         }
-        
+
         .btn-outline-spotify {
             background-color: transparent;
             color: #ffffff;
@@ -102,6 +102,48 @@
             box-shadow: none;
         }
 
+        /* Advanced filter panel */
+        .filter-panel {
+            background-color: var(--spotify-card);
+            border: 1px solid #282828;
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+        }
+        .filter-panel label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--spotify-text-subdued);
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+        }
+        .filter-panel .form-control,
+        .filter-panel .form-select {
+            background-color: #242424;
+            border: 1px solid #3e3e3e;
+            color: #ffffff;
+            font-size: 0.9rem;
+        }
+        .filter-panel .form-control:focus,
+        .filter-panel .form-select:focus {
+            background-color: #2a2a2a;
+            color: #ffffff;
+            border-color: var(--spotify-green);
+            box-shadow: none;
+        }
+        .filter-panel option { background-color: #242424; color: #ffffff; }
+
+        .filter-chip {
+            background-color: #2a2a2a;
+            border-radius: 50px;
+            padding: 0.25rem 0.85rem;
+            font-size: 0.8rem;
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
         /* 3. Track Cards */
         .track-card {
             background-color: var(--spotify-card);
@@ -113,23 +155,6 @@
         }
         .track-card:hover {
             background-color: var(--spotify-card-hover);
-        }
-        .cover-image-wrapper {
-            position: relative;
-            width: 100%;
-            padding-top: 100%; /* 1:1 Aspect Ratio */
-            margin-bottom: 1rem;
-            border-radius: 6px;
-            overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        }
-        .cover-image-wrapper img {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
         }
         .track-title {
             font-weight: 700;
@@ -147,12 +172,16 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        
+        .track-meta {
+            font-size: 0.72rem;
+            color: #7a7a7a;
+        }
+
         /* Audio Player */
-        audio { 
-            width: 100%; 
-            height: 35px; 
-            outline: none; 
+        audio {
+            width: 100%;
+            height: 35px;
+            outline: none;
         }
         audio::-webkit-media-controls-panel {
             background-color: #282828;
@@ -166,116 +195,291 @@
         .text-green { color: var(--spotify-green); }
         .text-subdued { color: var(--spotify-text-subdued); }
     </style>
+    {% include "music/partials/cover_styles.html" %}
 </head>
 <body>
 
     <!-- 1. Top Navigation & Auth Bar -->
-    <div class="auth-bar shadow-sm mb-5">
+    <div class="auth-bar shadow-sm mb-4">
         <a href="{% url 'home' %}" class="brand-logo">
             <i class="fa-solid fa-circle-play"></i> Crescendo
         </a>
 
         {% if user.is_authenticated %}
-            <!-- What a logged-in user sees -->
             <div class="d-flex align-items-center">
-                
-                <!-- THE NEW PLAYLISTS BUTTON -->
+                <a href="{% url 'genres' %}" class="btn btn-outline-spotify btn-sm me-2 border-0 text-white">
+                    <i class="fa-solid fa-compact-disc"></i> Genres
+                </a>
                 <a href="{% url 'playlists' %}" class="btn btn-outline-spotify btn-sm me-2 border-0 text-white">
                     <i class="fa-solid fa-list"></i> Playlists
                 </a>
-
-                <!-- THE EXISTING MY LIBRARY BUTTON -->
                 <a href="{% url 'library' %}" class="btn btn-outline-spotify btn-sm me-4 border-0 text-green">
                     <i class="fa-solid fa-book-open"></i> My Library
                 </a>
-                
-                <span class="me-4 text-subdued fw-bold">Hi, <a href="{% url 'dashboard' %}" class="text-white text-decoration-none custom-hover">{{ user.username }}</a></span>
+
+                <span class="me-4 text-subdued fw-bold">Hi, <a href="{% url 'dashboard' %}" class="text-white text-decoration-none">{{ user.username }}</a></span>
                 <form method="POST" action="{% url 'logout' %}" style="display:inline;">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-outline-spotify btn-sm">Log Out</button>
                 </form>
             </div>
         {% else %}
-            <!-- What a logged-out guest sees -->
-            <div>
-                <a href="{% url 'register' %}" class="text-subdued text-decoration-none fw-bold me-4 custom-hover">Sign Up</a>
+            <div class="d-flex align-items-center">
+                <a href="{% url 'genres' %}" class="btn btn-outline-spotify btn-sm me-3 border-0 text-white">
+                    <i class="fa-solid fa-compact-disc"></i> Genres
+                </a>
+                <a href="{% url 'register' %}" class="text-subdued text-decoration-none fw-bold me-4">Sign Up</a>
                 <a href="{% url 'login' %}" class="btn btn-spotify btn-sm">Log In</a>
             </div>
         {% endif %}
     </div>
 
     <div class="container mb-5 pb-5">
-        
-        <!-- 2. Hero Section & Search Bar -->
-        <div class="row mb-5 text-center">
-            <div class="col-md-8 offset-md-2">
-                <h1 class="display-5 fw-bold mb-3">Discover timeless music.</h1>
-                <p class="text-subdued mb-4">Search across genres, eras, and artists.</p>
-                
-                <form method="GET" action="" class="d-flex justify-content-center align-items-center gap-2 mt-2">
-                    <input class="form-control search-input w-75" 
-                           type="search" 
-                           placeholder="What do you want to listen to?" 
-                           name="q" 
-                           value="{{ request.GET.q }}">
-                    <button class="btn btn-spotify py-2 px-4" type="submit">Search</button>
-                    {% if request.GET.q %}
-                        <a href="/" class="btn btn-outline-spotify py-2">Clear</a>
-                    {% endif %}
-                </form>
 
-                <!-- NEW: Genre Filter Buttons -->
-                <div class="d-flex justify-content-center gap-2 mt-4 flex-wrap">
-                    <a href="{% url 'home' %}" class="btn {% if not request.GET.genre and not request.GET.q %}btn-spotify{% else %}btn-outline-spotify{% endif %} rounded-pill px-4 fw-bold">All</a>
-                    
-                    <a href="?genre=Pop" class="btn {% if request.GET.genre == 'Pop' %}btn-spotify{% else %}btn-outline-spotify{% endif %} rounded-pill px-4 fw-bold">Pop</a>
-                    
-                    <a href="?genre=Hip-Hop" class="btn {% if request.GET.genre == 'Hip-Hop' %}btn-spotify{% else %}btn-outline-spotify{% endif %} rounded-pill px-4 fw-bold">Hip-Hop</a>
-                    
-                    <a href="?genre=Electronic" class="btn {% if request.GET.genre == 'Electronic' %}btn-spotify{% else %}btn-outline-spotify{% endif %} rounded-pill px-4 fw-bold">Electronic</a>
-                    
-                    <a href="?genre=Rock" class="btn {% if request.GET.genre == 'Rock' %}btn-spotify{% else %}btn-outline-spotify{% endif %} rounded-pill px-4 fw-bold">Rock</a>
-                    
-                    <a href="?genre=Jazz" class="btn {% if request.GET.genre == 'Jazz' %}btn-spotify{% else %}btn-outline-spotify{% endif %} rounded-pill px-4 fw-bold">Jazz</a>
+        {% if messages %}
+            <div class="row mb-3">
+                <div class="col-md-8 offset-md-2">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} py-2 px-3 small mb-2">{{ message }}</div>
+                    {% endfor %}
                 </div>
+            </div>
+        {% endif %}
+
+        <!-- New visitors get a nudge toward the two-step sign up / log in flow -->
+        {% if not user.is_authenticated %}
+            <div class="row mb-4">
+                <div class="col-md-8 offset-md-2">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 px-3 py-2 rounded-3" style="background-color:#181818; border:1px solid #282828;">
+                        <span class="small text-subdued">
+                            <i class="fa-solid fa-circle-info me-1 text-green"></i>
+                            New here? Create an account first, then log in to like tracks and build playlists.
+                        </span>
+                        <span>
+                            <a href="{% url 'register' %}" class="btn btn-spotify btn-sm">Sign Up</a>
+                            <a href="{% url 'login' %}" class="btn btn-outline-spotify btn-sm ms-1">Log In</a>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- 2. Hero Section & Search Bar -->
+        <div class="row mb-4 text-center">
+            <div class="col-md-10 offset-md-1">
+                <h1 class="display-6 fw-bold mb-2">Discover timeless music.</h1>
+                <p class="text-subdued mb-4">Search across songs, artists, albums, genres, years and decades.</p>
+
+                <!-- Single GET form: the free-text box and every filter submit together -->
+                <form method="GET" action="{% url 'home' %}" id="search-form">
+
+                    <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
+                        <input class="form-control search-input w-75"
+                               type="search"
+                               placeholder="Song, artist, album, composer..."
+                               name="q"
+                               value="{{ filters.q }}">
+                        <button class="btn btn-spotify py-2 px-4" type="submit">Search</button>
+                        {% if filters.q or has_active_filters %}
+                            <a href="{% url 'home' %}" class="btn btn-outline-spotify py-2">Clear</a>
+                        {% endif %}
+                    </div>
+
+                    <!-- Genre chips, built from the genres actually present in the database -->
+                    <div class="d-flex justify-content-center gap-2 mb-3 flex-wrap">
+                        <a href="{% url 'home' %}{% if filters.q %}?q={{ filters.q|urlencode }}{% endif %}"
+                           class="btn {% if not filters.genre %}btn-spotify{% else %}btn-outline-spotify{% endif %} btn-sm rounded-pill px-3 fw-bold">
+                            All
+                        </a>
+                        {% for genre in facets.genres %}
+                            <a href="?genre={{ genre.name|urlencode }}{% if filters.q %}&q={{ filters.q|urlencode }}{% endif %}"
+                               class="btn {% if filters.genre|lower == genre.name|lower %}btn-spotify{% else %}btn-outline-spotify{% endif %} btn-sm rounded-pill px-3 fw-bold">
+                                {{ genre.name }} <span class="opacity-50">{{ genre.count }}</span>
+                            </a>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Collapsible advanced filters -->
+                    <div class="text-center mb-3">
+                        <button class="btn btn-link text-subdued text-decoration-none small fw-bold"
+                                type="button" data-bs-toggle="collapse" data-bs-target="#advancedFilters"
+                                aria-expanded="{% if has_active_filters %}true{% else %}false{% endif %}">
+                            <i class="fa-solid fa-sliders me-1"></i> Advanced filters
+                        </button>
+                    </div>
+
+                    <div class="collapse {% if has_active_filters %}show{% endif %}" id="advancedFilters">
+                        <div class="filter-panel text-start mb-3">
+                            <p class="small text-subdued mb-3">
+                                <i class="fa-solid fa-circle-info me-1"></i>
+                                <strong>Released</strong> is when this recording came out.
+                                <strong>Musical period</strong> is when the music was composed &mdash;
+                                a 2009 recording of Vivaldi is Baroque, released in the 2000s.
+                                <br>
+                                Counts update with your other filters, and combinations with no
+                                results are hidden.
+                            </p>
+                            <div class="row g-3">
+
+                                <div class="col-md-4">
+                                    <label for="f-artist">Artist</label>
+                                    <input type="text" class="form-control" id="f-artist" name="artist"
+                                           placeholder="e.g. Mozart" value="{{ filters.artist }}">
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label for="f-album">Album</label>
+                                    <input type="text" class="form-control" id="f-album" name="album"
+                                           placeholder="e.g. Piano Sonatas" value="{{ filters.album }}">
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label for="f-genre">Genre</label>
+                                    <select class="form-select" id="f-genre" name="genre">
+                                        <option value="">Any genre</option>
+                                        {% for genre in facets.genres %}
+                                            <option value="{{ genre.name }}" {% if filters.genre|lower == genre.name|lower %}selected{% endif %}>
+                                                {{ genre.name }} ({{ genre.count }})
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                {% if facets.years %}
+                                <div class="col-md-3">
+                                    <label for="f-year">Released &middot; year</label>
+                                    <select class="form-select" id="f-year" name="year">
+                                        <option value="">Any year</option>
+                                        {% for year in facets.years %}
+                                            <option value="{{ year.name }}" {% if filters.year == year.name|stringformat:"s" %}selected{% endif %}>
+                                                {{ year.name }} ({{ year.count }})
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                {% endif %}
+
+                                {% if facets.decades %}
+                                <div class="col-md-3">
+                                    <label for="f-decade">Released &middot; decade</label>
+                                    <select class="form-select" id="f-decade" name="decade">
+                                        <option value="">Any decade</option>
+                                        {% for decade in facets.decades %}
+                                            <option value="{{ decade.name }}" {% if filters.decade == decade.name %}selected{% endif %}>
+                                                {{ decade.name }} ({{ decade.count }})
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                {% endif %}
+
+                                {% if facets.eras %}
+                                <div class="col-md-3">
+                                    <label for="f-era" title="When the music was written, not when this recording came out">
+                                        Musical period
+                                    </label>
+                                    <select class="form-select" id="f-era" name="era">
+                                        <option value="">Any period</option>
+                                        {% for era in facets.eras %}
+                                            <option value="{{ era.name }}" {% if filters.era|lower == era.name|lower %}selected{% endif %}>
+                                                {{ era.name }} ({{ era.count }})
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                {% endif %}
+
+                                <div class="col-md-3">
+                                    <label for="f-sort">Sort by</label>
+                                    <select class="form-select" id="f-sort" name="sort">
+                                        <option value="relevance" {% if filters.sort == 'relevance' %}selected{% endif %}>Relevance</option>
+                                        <option value="album" {% if filters.sort == 'album' %}selected{% endif %}>Album order</option>
+                                        <option value="title" {% if filters.sort == 'title' %}selected{% endif %}>Title A-Z</option>
+                                        <option value="newest" {% if filters.sort == 'newest' %}selected{% endif %}>Newest first</option>
+                                        <option value="oldest" {% if filters.sort == 'oldest' %}selected{% endif %}>Oldest first</option>
+                                        <option value="longest" {% if filters.sort == 'longest' %}selected{% endif %}>Longest</option>
+                                        <option value="shortest" {% if filters.sort == 'shortest' %}selected{% endif %}>Shortest</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-12 text-end">
+                                    <button type="submit" class="btn btn-spotify btn-sm px-4">Apply filters</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
 
-        <!-- 3. Track Grid -->
+        <!-- 3. Result summary, spelling correction and suggestions -->
+        {% if filters.q or has_active_filters %}
+            <div class="row mb-3">
+                <div class="col-12 d-flex flex-wrap align-items-center gap-2">
+                    <span class="text-subdued small">
+                        <strong class="text-white">{{ total_results }}</strong>
+                        result{{ total_results|pluralize }}
+                    </span>
+
+                    {% if filters.q %}<span class="filter-chip"><i class="fa-solid fa-magnifying-glass opacity-50"></i>{{ filters.q }}</span>{% endif %}
+                    {% if filters.genre %}<span class="filter-chip"><i class="fa-solid fa-tag opacity-50"></i>{{ filters.genre }}</span>{% endif %}
+                    {% if filters.artist %}<span class="filter-chip"><i class="fa-solid fa-user opacity-50"></i>{{ filters.artist }}</span>{% endif %}
+                    {% if filters.album %}<span class="filter-chip"><i class="fa-solid fa-compact-disc opacity-50"></i>{{ filters.album }}</span>{% endif %}
+                    {% if filters.year %}<span class="filter-chip"><i class="fa-solid fa-calendar opacity-50"></i>{{ filters.year }}</span>{% endif %}
+                    {% if filters.decade %}<span class="filter-chip"><i class="fa-solid fa-clock-rotate-left opacity-50"></i>{{ filters.decade }}</span>{% endif %}
+                    {% if filters.era %}<span class="filter-chip"><i class="fa-solid fa-landmark opacity-50"></i>{{ filters.era }}</span>{% endif %}
+                </div>
+            </div>
+
+            {% if corrected_from %}
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <p class="small text-subdued mb-0">
+                            Showing results for <strong class="text-white">{{ filters.q }}</strong>.
+                            No matches for <em>{{ corrected_from }}</em>.
+                        </p>
+                    </div>
+                </div>
+            {% endif %}
+        {% endif %}
+
+        <!-- 4. Track Grid -->
         <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-4">
             {% for track in tracks %}
                 <div class="col">
-                    <div class="track-card d-flex flex-column">
-                        
+                    <div class="track-card d-flex flex-column"
+                         {% if track.audio_file %}
+                         data-track-src="{{ track.audio_file }}"
+                         data-track-title="{{ track.title }}"
+                         data-track-artist="{% for artist in track.artists.all %}{{ artist.name }}{% if not forloop.last %}, {% endif %}{% empty %}Unknown Artist{% endfor %}"
+                         data-track-cover="{{ track.album.cover_url }}"
+                         data-track-duration="{{ track.duration_sec }}"
+                         {% endif %}>
+
                         <!-- Album Cover -->
-                        <div class="cover-image-wrapper">
-                            {% if track.album and track.album.cover_url %}
-                                <img src="{{ track.album.cover_url }}" alt="{{ track.title }} Cover">
-                            {% else %}
-                                <!-- Fallback gray square if no image exists -->
-                                <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary">
-                                    <i class="fa-solid fa-music fa-2x text-dark"></i>
-                                </div>
-                            {% endif %}
-                        </div>
-                        
+                        {% include "music/partials/cover.html" with track=track %}
+
                         <!-- Track Info & Like Button -->
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div class="text-truncate pe-2">
                                 <h5 class="track-title mb-0" title="{{ track.title }}">{{ track.title }}</h5>
-                                <p class="track-artist mt-1 mb-0 text-truncate">
+                                <p class="track-artist mt-1 mb-1 text-truncate">
                                     {% for artist in track.artists.all %}
                                         {{ artist.name }}{% if not forloop.last %}, {% endif %}
                                     {% empty %}
                                         Unknown Artist
                                     {% endfor %}
                                 </p>
+                                <p class="track-meta mb-0 text-truncate">
+                                    {% if track.genre %}<a href="?genre={{ track.genre.name|urlencode }}" class="text-decoration-none" style="color:#7a7a7a;">{{ track.genre.name }}</a>{% endif %}
+                                    {% if track.album.release_date %} &middot; {{ track.album.release_date|date:"Y" }}{% endif %}
+                                    {% if track.duration_sec %} &middot; {{ track.formatted_duration }}{% endif %}
+                                </p>
                             </div>
+
                             <!-- Action Buttons (Like & Add to Playlist) -->
                             <div class="d-flex align-items-center gap-2">
                                 {% if user.is_authenticated %}
-                                    
-                                    <!-- NEW: Add to Playlist Dropdown -->
                                     <div class="dropdown">
                                         <button class="btn btn-link p-0 border-0 shadow-none text-decoration-none" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Add to Playlist">
                                             <i class="fa-solid fa-plus text-subdued fs-5"></i>
@@ -284,7 +488,7 @@
                                             {% if user_playlists %}
                                                 {% for playlist in user_playlists %}
                                                     <li>
-                                                        <form method="POST" action="{% url 'add_to_playlist' track.id playlist.id %}">
+                                                        <form method="POST" action="{% url 'add_to_playlist' track.id playlist.id %}" class="js-playlist-form">
                                                             {% csrf_token %}
                                                             <button type="submit" class="dropdown-item">{{ playlist.name }}</button>
                                                         </form>
@@ -296,8 +500,7 @@
                                         </ul>
                                     </div>
 
-                                    <!-- EXISTING: The Heart Button -->
-                                    <form method="POST" action="{% url 'toggle_like' track.id %}">
+                                    <form method="POST" action="{% url 'toggle_like' track.id %}" class="js-like-form" data-track-title="{{ track.title }}">
                                         {% csrf_token %}
                                         <button type="submit" class="btn btn-link p-0 border-0 shadow-none text-decoration-none">
                                             {% if track.id in liked_track_ids %}
@@ -307,45 +510,48 @@
                                             {% endif %}
                                         </button>
                                     </form>
-                                    
                                 {% else %}
-                                    <!-- Logged out view -->
-                                    <a href="{% url 'login' %}" class="text-subdued text-decoration-none">
+                                    <a href="{% url 'login' %}" class="text-subdued text-decoration-none" title="Log in to like tracks">
                                         <i class="fa-regular fa-heart fs-5"></i>
                                     </a>
                                 {% endif %}
                             </div>
                         </div>
-                        
-                        <!-- Audio Player -->
-                        <div class="mt-auto">
-                            {% if track.audio_file %}
-                                <audio controls preload="none">
-                                    <source src="{{ track.audio_file }}" type="audio/mpeg">
-                                    Your browser does not support the audio element.
-                                </audio>
-                            {% endif %}
-                        </div>
-                        
+
+
                     </div>
                 </div>
             {% empty %}
-                <!-- Empty State -->
+                <!-- Empty State, with close-match suggestions when we have them -->
                 <div class="col-12 text-center text-subdued mt-5 w-100">
                     <i class="fa-solid fa-magnifying-glass fa-3x mb-3 text-secondary"></i>
                     <h4>No tracks found</h4>
-                    <p>Try searching for a different artist, genre, or track name.</p>
+
+                    {% if suggestions %}
+                        <p class="mb-2">Did you mean:</p>
+                        <div class="d-flex justify-content-center gap-2 flex-wrap mb-3">
+                            {% for suggestion in suggestions %}
+                                <a href="?q={{ suggestion|urlencode }}" class="btn btn-outline-spotify btn-sm rounded-pill">
+                                    {{ suggestion }}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p>Try a different artist, genre, album or year - or loosen your filters.</p>
+                    {% endif %}
+
+                    <a href="{% url 'home' %}" class="btn btn-spotify btn-sm mt-2">Reset search</a>
                 </div>
             {% endfor %}
         </div>
 
-        <!-- 4. Pagination -->
+        <!-- 5. Pagination (carries the active search and filters) -->
         {% if tracks.has_other_pages %}
             <div class="d-flex justify-content-center mt-5">
                 <div class="btn-group">
                     {% if tracks.has_previous %}
-                        <a href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="btn btn-outline-spotify">&laquo; First</a>
-                        <a href="?page={{ tracks.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="btn btn-outline-spotify">Previous</a>
+                        <a href="?page=1{{ querystring }}" class="btn btn-outline-spotify">&laquo; First</a>
+                        <a href="?page={{ tracks.previous_page_number }}{{ querystring }}" class="btn btn-outline-spotify">Previous</a>
                     {% endif %}
 
                     <span class="btn btn-outline-spotify disabled text-white" style="border-color: #727272; opacity: 1;">
@@ -353,15 +559,18 @@
                     </span>
 
                     {% if tracks.has_next %}
-                        <a href="?page={{ tracks.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="btn btn-outline-spotify">Next</a>
-                        <a href="?page={{ tracks.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="btn btn-outline-spotify">Last &raquo;</a>
+                        <a href="?page={{ tracks.next_page_number }}{{ querystring }}" class="btn btn-outline-spotify">Next</a>
+                        <a href="?page={{ tracks.paginator.num_pages }}{{ querystring }}" class="btn btn-outline-spotify">Last &raquo;</a>
                     {% endif %}
                 </div>
             </div>
         {% endif %}
 
     </div>
-    
+
+    {% include "music/partials/player.html" %}
+    {% include "music/partials/track_actions.html" %}
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

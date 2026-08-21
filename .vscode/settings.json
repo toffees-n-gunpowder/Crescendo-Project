@@ -1,0 +1,39 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}\\env\\Scripts\\python.exe",
+  "python.terminal.activateEnvironment": true,
+
+  // Pylance resolves "from music.models import ..." only if it knows the
+  // Django project root is on sys.path.
+  "python.analysis.extraPaths": ["${workspaceFolder}"],
+  "python.analysis.typeCheckingMode": "basic",
+
+  // Django builds these at runtime via its model metaclass, so no static
+  // analyzer can see them: get_<field>_display(), <fk>_id, <model>_set,
+  // the implicit `id` primary key, and related_name reverse managers.
+  // Every one of them is valid at runtime - leaving this on produces only
+  // false positives in a Django project.
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportAttributeAccessIssue": "none"
+  },
+
+  // Django's {% %} and {{ }} are not valid HTML; without this the HTML
+  // language server reports them as errors in every template.
+  "files.associations": {
+    "**/templates/**/*.html": "django-html"
+  },
+  "emmet.includeLanguages": {
+    "django-html": "html"
+  },
+  "[django-html]": {
+    "editor.formatOnSave": false
+  },
+
+  "files.exclude": {
+    "**/__pycache__": true,
+    "env": true
+  },
+  "search.exclude": {
+    "env": true,
+    "**/__pycache__": true
+  }
+}

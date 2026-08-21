@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% load music_extras %}<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -140,6 +140,7 @@
         .text-green { color: var(--spotify-green); }
         .text-subdued { color: var(--spotify-text-subdued); }
     </style>
+    {% include "music/partials/cover_styles.html" %}
 </head>
 <body>
 
@@ -176,16 +177,7 @@
                     <div class="track-card d-flex flex-column">
                         
                         <!-- Album Cover -->
-                        <div class="cover-image-wrapper">
-                            {% if track.album and track.album.cover_url %}
-                                <img src="{{ track.album.cover_url }}" alt="{{ track.title }} Cover">
-                            {% else %}
-                                <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary">
-                                    <i class="fa-solid fa-music fa-2x text-dark"></i>
-                                </div>
-                            {% endif %}
-                        </div>
-                        
+                        {% include "music/partials/cover.html" with track=track show_play=False %}
                         <!-- Track Info & Like Button -->
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div class="text-truncate pe-2">
@@ -201,7 +193,7 @@
                             
                             <!-- The Heart Button -->
                             <div>
-                                <form method="POST" action="{% url 'toggle_like' track.id %}">
+                                <form method="POST" action="{% url 'toggle_like' track.id %}" class="js-like-form" data-track-title="{{ track.title }}">
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-link p-0 border-0 shadow-none text-decoration-none" title="Remove from library">
                                         {% if track.id in liked_track_ids %}
@@ -239,6 +231,29 @@
 
     </div>
     
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% include "music/partials/track_actions.html" %}
+
+<script>
+// On the library page an "unlike" means the track no longer belongs here, so
+// fade its card out instead of leaving a stale entry behind until a refresh.
+document.addEventListener('crescendo:like', (event) => {
+    if (event.detail.liked) return;
+
+    const form = document.querySelector(
+        '.js-like-form[action$="/like/' + event.detail.track_id + '/"]'
+    );
+    const card = form && form.closest('.col');
+    if (!card) return;
+
+    card.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+    card.style.opacity = '0';
+    card.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+        card.remove();
+        if (!document.querySelectorAll('.track-card').length) window.location.reload();
+    }, 360);
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

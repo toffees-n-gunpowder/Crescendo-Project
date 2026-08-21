@@ -1,0 +1,448 @@
+{% comment %}
+Persistent bottom playback bar.
+
+Include once per page, after the track grid. Any element carrying
+data-track-src / data-track-title / data-track-artist / data-track-cover
+becomes playable, and the bar treats them as a queue in DOM order so
+previous/next step through the visible results.
+{% endcomment %}
+
+<style>
+    :root {
+        --player-height: 90px;
+    }
+
+    /* Keep the last row of cards clear of the fixed bar */
+    body.has-player {
+        padding-bottom: calc(var(--player-height) + 1rem);
+    }
+
+    .player-bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: var(--player-height);
+        background: #181818;
+        border-top: 1px solid #282828;
+        display: none;
+        align-items: center;
+        gap: 1rem;
+        padding: 0 1.25rem;
+        z-index: 1100;
+    }
+    .player-bar.active { display: flex; }
+
+    .player-now {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        min-width: 0;
+        width: 26%;
+    }
+    .player-now img {
+        width: 56px;
+        height: 56px;
+        border-radius: 6px;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+    .player-now .meta { min-width: 0; }
+    .player-now .title {
+        font-weight: 700;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin: 0;
+    }
+    .player-now .artist {
+        color: #b3b3b3;
+        font-size: 0.78rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin: 0;
+    }
+
+    .player-center {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.3rem;
+        min-width: 0;
+    }
+
+    .player-controls {
+        display: flex;
+        align-items: center;
+        gap: 1.1rem;
+    }
+    .player-btn {
+        background: none;
+        border: none;
+        color: #b3b3b3;
+        font-size: 1rem;
+        padding: 0;
+        line-height: 1;
+        cursor: pointer;
+        transition: color 0.15s, transform 0.15s;
+    }
+    .player-btn:hover { color: #ffffff; transform: scale(1.1); }
+    .player-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+
+    .player-btn-main {
+        background: #ffffff;
+        color: #000000;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .player-btn-main:hover {
+        background: #ffffff;
+        color: #000000;
+        transform: scale(1.06);
+    }
+
+    /* Seek + volume sliders */
+    .player-seek-row {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        width: 100%;
+        max-width: 620px;
+    }
+    .player-time {
+        font-size: 0.7rem;
+        color: #b3b3b3;
+        font-variant-numeric: tabular-nums;
+        min-width: 36px;
+        text-align: center;
+    }
+
+    input[type="range"].player-range {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 4px;
+        border-radius: 2px;
+        background: #535353;
+        outline: none;
+        cursor: pointer;
+    }
+    input[type="range"].player-range::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #ffffff;
+        opacity: 0;
+        transition: opacity 0.15s;
+    }
+    input[type="range"].player-range:hover::-webkit-slider-thumb { opacity: 1; }
+    input[type="range"].player-range::-moz-range-thumb {
+        width: 12px;
+        height: 12px;
+        border: none;
+        border-radius: 50%;
+        background: #ffffff;
+    }
+
+    .player-right {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.6rem;
+        width: 26%;
+    }
+    .player-volume { width: 90px; }
+
+    @media (max-width: 767px) {
+        .player-now { width: auto; }
+        .player-now img { width: 44px; height: 44px; }
+        .player-right { display: none; }
+        .player-time { min-width: 30px; }
+    }
+
+    /* Play button overlaid on each cover */
+    .play-overlay {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: none;
+        background: #1db954;
+        color: #000000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        opacity: 0;
+        transform: translateY(6px);
+        transition: opacity 0.2s, transform 0.2s;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+        cursor: pointer;
+        z-index: 2;
+    }
+    .track-card:hover .play-overlay,
+    .play-overlay.is-current {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .track-card.is-current { background-color: #282828; }
+    .track-card.is-current .track-title { color: #1db954; }
+</style>
+
+<div class="player-bar" id="playerBar" aria-label="Audio player">
+
+    <div class="player-now">
+        <img id="playerCover" src="" alt="" hidden>
+        <div class="meta">
+            <p class="title" id="playerTitle">Nothing playing</p>
+            <p class="artist" id="playerArtist"></p>
+        </div>
+    </div>
+
+    <div class="player-center">
+        <div class="player-controls">
+            <button class="player-btn" id="btnPrev" type="button" title="Previous track">
+                <i class="fa-solid fa-backward-step"></i>
+            </button>
+            <button class="player-btn" id="btnBack10" type="button" title="Back 10 seconds">
+                <i class="fa-solid fa-rotate-left"></i>
+            </button>
+            <button class="player-btn player-btn-main" id="btnPlay" type="button" title="Play / pause">
+                <i class="fa-solid fa-play" id="btnPlayIcon"></i>
+            </button>
+            <button class="player-btn" id="btnFwd10" type="button" title="Forward 10 seconds">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+            <button class="player-btn" id="btnNext" type="button" title="Next track">
+                <i class="fa-solid fa-forward-step"></i>
+            </button>
+        </div>
+
+        <div class="player-seek-row">
+            <span class="player-time" id="playerCurrent">0:00</span>
+            <input type="range" class="player-range" id="playerSeek"
+                   value="0" min="0" max="100" step="0.1" aria-label="Seek">
+            <span class="player-time" id="playerDuration">0:00</span>
+        </div>
+    </div>
+
+    <div class="player-right">
+        <button class="player-btn" id="btnMute" type="button" title="Mute">
+            <i class="fa-solid fa-volume-high" id="btnMuteIcon"></i>
+        </button>
+        <input type="range" class="player-range player-volume" id="playerVolume"
+               value="100" min="0" max="100" step="1" aria-label="Volume">
+    </div>
+
+    <audio id="playerAudio" preload="metadata"></audio>
+</div>
+
+<script>
+(function () {
+    const audio = document.getElementById('playerAudio');
+    const bar = document.getElementById('playerBar');
+    const seek = document.getElementById('playerSeek');
+    const volume = document.getElementById('playerVolume');
+    const playIcon = document.getElementById('btnPlayIcon');
+    const muteIcon = document.getElementById('btnMuteIcon');
+    const elCurrent = document.getElementById('playerCurrent');
+    const elDuration = document.getElementById('playerDuration');
+    const elTitle = document.getElementById('playerTitle');
+    const elArtist = document.getElementById('playerArtist');
+    const elCover = document.getElementById('playerCover');
+
+    // Every playable card on the page, in visual order - this is the queue.
+    const queue = Array.from(document.querySelectorAll('[data-track-src]'))
+                       .filter(el => el.dataset.trackSrc);
+    let index = -1;
+    let seeking = false;
+
+    if (!queue.length) return;
+
+    function fmt(seconds) {
+        if (!isFinite(seconds) || seconds < 0) return '0:00';
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return m + ':' + String(s).padStart(2, '0');
+    }
+
+    function markCurrent() {
+        queue.forEach((el, i) => {
+            const card = el.closest('.track-card') || el;
+            card.classList.toggle('is-current', i === index);
+            const overlay = card.querySelector('.play-overlay');
+            if (overlay) overlay.classList.toggle('is-current', i === index);
+        });
+    }
+
+    function syncPlayIcons() {
+        const playing = !audio.paused && !audio.ended;
+        playIcon.className = playing ? 'fa-solid fa-pause' : 'fa-solid fa-play';
+
+        queue.forEach((el, i) => {
+            const overlay = (el.closest('.track-card') || el).querySelector('.play-overlay i');
+            if (!overlay) return;
+            overlay.className = (i === index && playing)
+                ? 'fa-solid fa-pause'
+                : 'fa-solid fa-play';
+        });
+    }
+
+    function load(i, autoplay) {
+        if (i < 0 || i >= queue.length) return;
+        const el = queue[i];
+        index = i;
+
+        audio.src = el.dataset.trackSrc;
+        elTitle.textContent = el.dataset.trackTitle || 'Unknown track';
+        elArtist.textContent = el.dataset.trackArtist || '';
+
+        const cover = el.dataset.trackCover;
+        if (cover) {
+            elCover.src = cover;
+            elCover.hidden = false;
+        } else {
+            elCover.hidden = true;
+        }
+
+        // Duration is known up front from the database, so the bar is usable
+        // even before the browser finishes reading the stream's metadata.
+        const known = parseFloat(el.dataset.trackDuration || '0');
+        if (known > 0) {
+            seek.max = known;
+            elDuration.textContent = fmt(known);
+        }
+
+        bar.classList.add('active');
+        document.body.classList.add('has-player');
+        markCurrent();
+
+        if (autoplay) {
+            audio.play().catch(() => syncPlayIcons());
+        }
+        syncPlayIcons();
+    }
+
+    function toggle(i) {
+        if (i === index) {
+            audio.paused ? audio.play().catch(() => {}) : audio.pause();
+        } else {
+            load(i, true);
+        }
+    }
+
+    function step(delta) {
+        if (index < 0) return;
+        let next = index + delta;
+        if (next < 0) next = queue.length - 1;
+        if (next >= queue.length) next = 0;
+        load(next, true);
+    }
+
+    // --- Card play buttons -------------------------------------------------
+    queue.forEach((el, i) => {
+        const card = el.closest('.track-card') || el;
+        const overlay = card.querySelector('.play-overlay');
+        if (overlay) {
+            overlay.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggle(i);
+            });
+        }
+    });
+
+    // --- Transport ---------------------------------------------------------
+    document.getElementById('btnPlay').addEventListener('click', () => {
+        if (index < 0) { load(0, true); return; }
+        audio.paused ? audio.play().catch(() => {}) : audio.pause();
+    });
+    document.getElementById('btnNext').addEventListener('click', () => step(1));
+    document.getElementById('btnPrev').addEventListener('click', () => {
+        // Match the usual convention: restart the track unless we're near its start.
+        if (audio.currentTime > 3) { audio.currentTime = 0; return; }
+        step(-1);
+    });
+    document.getElementById('btnFwd10').addEventListener('click', () => {
+        audio.currentTime = Math.min(audio.currentTime + 10, audio.duration || Infinity);
+    });
+    document.getElementById('btnBack10').addEventListener('click', () => {
+        audio.currentTime = Math.max(audio.currentTime - 10, 0);
+    });
+
+    // --- Seeking -----------------------------------------------------------
+    seek.addEventListener('input', () => {
+        seeking = true;
+        elCurrent.textContent = fmt(parseFloat(seek.value));
+    });
+    seek.addEventListener('change', () => {
+        const target = parseFloat(seek.value);
+        if (isFinite(target)) audio.currentTime = target;
+        seeking = false;
+    });
+
+    audio.addEventListener('loadedmetadata', () => {
+        if (isFinite(audio.duration) && audio.duration > 0) {
+            seek.max = audio.duration;
+            elDuration.textContent = fmt(audio.duration);
+        }
+    });
+    audio.addEventListener('timeupdate', () => {
+        if (seeking) return;
+        seek.value = audio.currentTime;
+        elCurrent.textContent = fmt(audio.currentTime);
+    });
+    audio.addEventListener('ended', () => step(1));
+    audio.addEventListener('play', syncPlayIcons);
+    audio.addEventListener('pause', syncPlayIcons);
+    audio.addEventListener('error', () => {
+        elArtist.textContent = 'Could not load this track.';
+        syncPlayIcons();
+    });
+
+    // --- Volume ------------------------------------------------------------
+    volume.addEventListener('input', () => {
+        audio.volume = volume.value / 100;
+        audio.muted = audio.volume === 0;
+        muteIcon.className = audio.muted || audio.volume === 0
+            ? 'fa-solid fa-volume-xmark'
+            : (audio.volume < 0.5 ? 'fa-solid fa-volume-low' : 'fa-solid fa-volume-high');
+    });
+    document.getElementById('btnMute').addEventListener('click', () => {
+        audio.muted = !audio.muted;
+        muteIcon.className = audio.muted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high';
+        volume.value = audio.muted ? 0 : audio.volume * 100;
+    });
+
+    // --- Keyboard ----------------------------------------------------------
+    document.addEventListener('keydown', (e) => {
+        const tag = (e.target.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+        if (e.code === 'Space') {
+            e.preventDefault();
+            if (index < 0) { load(0, true); return; }
+            audio.paused ? audio.play().catch(() => {}) : audio.pause();
+        } else if (e.code === 'ArrowRight' && e.shiftKey) {
+            e.preventDefault();
+            step(1);
+        } else if (e.code === 'ArrowLeft' && e.shiftKey) {
+            e.preventDefault();
+            step(-1);
+        }
+    });
+})();
+</script>
