@@ -23,18 +23,18 @@
 
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--spotify-black); color: #ffffff; min-height: 100vh; }
         
-        /* Navigation Bar */
+        
         .auth-bar { background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid #282828; }
         .brand-logo { color: var(--spotify-green); font-weight: 800; font-size: 1.5rem; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
         .brand-logo:hover { color: var(--spotify-green-hover); }
         
-        /* Buttons */
+        
         .btn-spotify { background-color: var(--spotify-green); color: #000; font-weight: 700; border-radius: 50px; padding: 0.5rem 1.5rem; border: none; }
         .btn-spotify:hover { background-color: var(--spotify-green-hover); color: #000; transform: scale(1.02); }
         .btn-outline-spotify { background-color: transparent; color: #ffffff; font-weight: 700; border-radius: 50px; padding: 0.5rem 1.5rem; border: 1px solid #727272; transition: all 0.2s; }
         .btn-outline-spotify:hover { border-color: #ffffff; color: #ffffff; }
 
-        /* Track Cards */
+        
         .track-card { background-color: var(--spotify-card); border-radius: 8px; padding: 1rem; transition: background-color 0.3s ease; height: 100%; }
         .track-card:hover { background-color: var(--spotify-card-hover); }
         .cover-image-wrapper { position: relative; width: 100%; padding-top: 100%; margin-bottom: 1rem; border-radius: 6px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
@@ -42,7 +42,7 @@
         .track-title { font-weight: 700; font-size: 1rem; margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .track-artist { color: var(--spotify-text-subdued); font-size: 0.875rem; margin-bottom: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        /* Audio */
+        
         audio { width: 100%; height: 35px; outline: none; }
         audio::-webkit-media-controls-panel { background-color: #282828; }
         audio::-webkit-media-controls-current-time-display, audio::-webkit-media-controls-time-remaining-display { color: #ffffff; }
@@ -51,12 +51,19 @@
         .text-subdued { color: var(--spotify-text-subdued); }
         .custom-hover { transition: color 0.2s; }
         .custom-hover:hover { color: #ffffff !important; }
+        .track-artist a, .artist-link {
+            color: inherit;
+            text-decoration: none;
+        }
+        .track-artist a:hover, .artist-link:hover {
+            color: #ffffff;
+            text-decoration: underline;
+        }
     </style>
     {% include "music/partials/cover_styles.html" %}
 </head>
 <body>
 
-    <!-- Top Navigation -->
     <div class="auth-bar shadow-sm mb-5">
         <a href="{% url 'home' %}" class="brand-logo">
             <i class="fa-solid fa-circle-play"></i> Crescendo
@@ -77,21 +84,21 @@
     </div>
 
     <div class="container mb-5 pb-5">
+
+        {% include "music/partials/messages.html" %}
+
         
-        <!-- Header Section (UPDATED) -->
         <div class="row mb-5 mt-4">
             <div class="col-12 text-center">
                 <h1 class="display-5 fw-bold mb-3 d-flex justify-content-center align-items-center">
                     <i class="fa-solid fa-music text-green me-3"></i>{{ playlist.name }}
                     
-                    <!-- NEW: Rename Button (Triggers Modal) -->
                     <button class="btn btn-link text-subdued p-0 ms-3 shadow-none" data-bs-toggle="modal" data-bs-target="#renameModal" title="Rename Playlist">
                         <i class="fa-solid fa-pen-to-square fs-5 custom-hover"></i>
                     </button>
                 </h1>
-                <p class="text-subdued mb-3">Created {{ playlist.created_at|date:"F j, Y" }} &bull; {{ playlist.playlist_tracks.count }} tracks</p>
+                <p class="text-subdued mb-3">Created {{ playlist.created_at|date:"F j, Y" }} &bull; {{ track_count }} tracks</p>
                 
-                <!-- NEW: Delete Playlist Button -->
                 <form method="POST" action="{% url 'delete_playlist' playlist.id %}" onsubmit="return confirm('Are you sure you want to delete this entire playlist?');">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-outline-danger btn-sm border-0 fw-bold">
@@ -101,28 +108,31 @@
             </div>
         </div>
 
-        <!-- Track Grid -->
         <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-4">
             {% for track in tracks %}
                 <div class="col">
-                    <div class="track-card d-flex flex-column">
+                    <div class="track-card d-flex flex-column"
+                         {% if track.audio_file %}
+                         data-track-src="{{ track.audio_file }}"
+                         data-track-title="{{ track.title }}"
+                         data-track-artist="{% for artist in track.artists.all %}{{ artist.name }}{% if not forloop.last %}, {% endif %}{% empty %}Unknown Artist{% endfor %}"
+                         data-track-cover="{{ track.album.cover_url }}"
+                         data-track-duration="{{ track.duration_sec }}"
+                         {% endif %}>
                         
-                        <!-- Album Cover -->
-                        {% include "music/partials/cover.html" with track=track show_play=False %}
-                        <!-- Track Info & Like Button -->
+                        {% include "music/partials/cover.html" with track=track %}
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div class="text-truncate pe-2">
                                 <h5 class="track-title mb-0" title="{{ track.title }}">{{ track.title }}</h5>
                                 <p class="track-artist mt-1 mb-0 text-truncate">
                                     {% for artist in track.artists.all %}
-                                        {{ artist.name }}{% if not forloop.last %}, {% endif %}
+                                        <a href="{% url 'artist_detail' artist.id %}" class="artist-link">{{ artist.name }}</a>{% if not forloop.last %}, {% endif %}
                                     {% empty %}
                                         Unknown Artist
                                     {% endfor %}
                                 </p>
                             </div>
                             
-                            <!-- Action Buttons (Like & Remove) -->
                             <div class="d-flex align-items-center gap-3">
                                 <form method="POST" action="{% url 'toggle_like' track.id %}" class="js-like-form" data-track-title="{{ track.title }}">
                                     {% csrf_token %}
@@ -144,19 +154,9 @@
                             </div>
                         </div>
                         
-                        <!-- Audio Player -->
-                        <div class="mt-auto">
-                            {% if track.audio_file %}
-                                <audio controls preload="none">
-                                    <source src="{{ track.audio_file }}" type="audio/mpeg">
-                                </audio>
-                            {% endif %}
-                        </div>
-                        
                     </div>
                 </div>
             {% empty %}
-                <!-- Empty State -->
                 <div class="col-12 text-center text-subdued mt-5 w-100">
                     <i class="fa-solid fa-headphones fa-3x mb-4 text-secondary"></i>
                     <h4>This playlist is empty</h4>
@@ -167,7 +167,6 @@
         </div>
     </div>
 
-    <!-- NEW: Rename Playlist Modal -->
     <div class="modal fade" id="renameModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content text-white" style="background-color: var(--spotify-card); border: 1px solid #282828;">
@@ -189,7 +188,8 @@
         </div>
     </div>
     
-    {% include "music/partials/track_actions.html" %}
+    {% include "music/partials/player.html" %}
+{% include "music/partials/track_actions.html" %}
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

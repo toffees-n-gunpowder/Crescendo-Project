@@ -23,16 +23,16 @@
 
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--spotify-black); color: #ffffff; min-height: 100vh; }
         
-        /* Navigation Bar */
+        
         .auth-bar { background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid #282828; }
         .brand-logo { color: var(--spotify-green); font-weight: 800; font-size: 1.5rem; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
         .brand-logo:hover { color: var(--spotify-green-hover); }
         
-        /* Buttons */
+        
         .btn-outline-spotify { background-color: transparent; color: #ffffff; font-weight: 700; border-radius: 50px; padding: 0.5rem 1.5rem; border: 1px solid #727272; transition: all 0.2s; }
         .btn-outline-spotify:hover { border-color: #ffffff; color: #ffffff; }
 
-        /* Profile Cards */
+        
         .stat-card { background-color: var(--spotify-card); border-radius: 12px; padding: 2rem; text-align: center; border: 1px solid #282828; transition: transform 0.2s; }
         .stat-card:hover { transform: translateY(-5px); background-color: var(--spotify-card-hover); }
         .stat-number { font-size: 3rem; font-weight: 800; color: var(--spotify-green); line-height: 1; margin-bottom: 0.5rem; }
@@ -48,7 +48,6 @@
 </head>
 <body>
 
-    <!-- Top Navigation -->
     <div class="auth-bar shadow-sm">
         <a href="{% url 'home' %}" class="brand-logo">
             <i class="fa-solid fa-circle-play"></i> Crescendo
@@ -60,7 +59,6 @@
             <a href="{% url 'library' %}" class="btn btn-outline-spotify btn-sm me-4 border-0 text-white">
                 <i class="fa-solid fa-book-open"></i> My Library
             </a>
-            <!-- CLICKABLE USERNAME -->
             <span class="me-4 text-subdued fw-bold">Hi, <a href="{% url 'dashboard' %}" class="text-green custom-hover">{{ user.username }}</a></span>
             <form method="POST" action="{% url 'logout' %}" style="display:inline;">
                 {% csrf_token %}
@@ -69,9 +67,11 @@
         </div>
     </div>
 
-    <!-- Profile Header -->
     <div class="profile-header text-center">
         <div class="container">
+
+        {% include "music/partials/messages.html" %}
+
             <div class="avatar-circle">
                 <i class="fa-solid fa-user"></i>
             </div>
@@ -80,11 +80,9 @@
         </div>
     </div>
 
-    <!-- Stats Section -->
     <div class="container mb-5 pb-5">
         <div class="row justify-content-center g-4">
             
-            <!-- Liked Songs Stat -->
             <div class="col-md-5 col-lg-4">
                 <a href="{% url 'library' %}" class="text-decoration-none">
                     <div class="stat-card">
@@ -95,7 +93,6 @@
                 </a>
             </div>
 
-            <!-- Playlists Stat -->
             <div class="col-md-5 col-lg-4">
                 <a href="{% url 'playlists' %}" class="text-decoration-none">
                     <div class="stat-card">
@@ -109,6 +106,8 @@
         </div>
     </div>
     
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% include "music/partials/player.html" %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

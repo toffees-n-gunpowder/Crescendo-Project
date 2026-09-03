@@ -113,7 +113,6 @@
             <p class="text-subdued small mb-0">Pick up where you left off.</p>
         </div>
 
-        <!-- Flash messages: covers the "account created, now log in" handoff -->
         {% if messages %}
             {% for message in messages %}
                 <div class="alert alert-{{ message.tags }} py-2 px-3 small mb-3">
@@ -123,8 +122,6 @@
         {% endif %}
 
         {% if unknown_user %}
-            <!-- The username does not exist yet: steer them to Sign Up rather
-                 than letting them guess at a password that was never set. -->
             <div class="signup-panel text-center mb-4">
                 <i class="fa-solid fa-user-plus text-success fs-4 mb-2"></i>
                 <p class="mb-2 small">
@@ -159,7 +156,6 @@
     </div>
 
     <script>
-        // Django renders plain <input> tags; give them the Bootstrap look.
         document.querySelectorAll('form input').forEach(el => {
             if (el.type !== 'hidden') el.classList.add('form-control');
         });

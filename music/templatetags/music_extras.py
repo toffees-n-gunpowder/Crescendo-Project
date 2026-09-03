@@ -1,20 +1,9 @@
-"""
-Template helpers for presenting cover art.
-
-Jamendo cover art is user-uploaded, so it arrives small and visually all over
-the place. These filters give every tile a consistent, genre-appropriate
-treatment and a designed fallback when the image is missing or fails to load.
-"""
-
 import re
 
 from django import template
 
 register = template.Library()
 
-# Genre families -> (css theme slug, Font Awesome icon).
-# Keys are matched as substrings of the lowercased genre name, so "Classical
-# Crossover" and "Neo-Classical" both land on the classical theme.
 GENRE_THEMES = [
     (('classical', 'baroque', 'orchestral', 'opera', 'chamber', 'piano'),
      ('classical', 'fa-solid fa-music')),
@@ -52,24 +41,16 @@ def _theme_for(genre_name):
 
 @register.filter
 def genre_theme(genre_name):
-    """CSS slug for a genre, e.g. 'classical'. Used as .cover-theme-<slug>."""
     return _theme_for(genre_name)[0]
 
 
 @register.filter
 def genre_icon(genre_name):
-    """Font Awesome class for a genre, e.g. 'fa-solid fa-guitar'."""
     return _theme_for(genre_name)[1]
 
 
 @register.filter
 def cover_size(url, width=400):
-    """
-    Ask Jamendo for a larger rendition.
-
-    Cover URLs arrive as ...&width=300, which is soft on high-DPI screens.
-    Jamendo serves fixed widths only, so we snap to a supported one.
-    """
     if not url:
         return url
 
@@ -90,7 +71,6 @@ def cover_size(url, width=400):
 
 @register.filter
 def initials(text):
-    """One or two letters to sit inside a fallback tile."""
     words = re.findall(r"[A-Za-z0-9]+", text or '')
     if not words:
         return '?'

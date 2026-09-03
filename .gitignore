@@ -10,3 +10,5 @@ __pycache__/
 
 # Local Django Database (if you ever test with it)
 db.sqlite3".claude/" 
+media/
+".claude/" 

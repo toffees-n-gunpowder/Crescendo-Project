@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crescendo | My Library</title>
     
-    <!-- Google Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -29,7 +28,7 @@
             min-height: 100vh;
         }
 
-        /* Navigation Bar */
+        
         .auth-bar {
             background-color: rgba(0, 0, 0, 0.8);
             backdrop-filter: blur(10px);
@@ -55,7 +54,7 @@
             color: var(--spotify-green-hover);
         }
 
-        /* Custom Buttons */
+        
         .btn-outline-spotify {
             background-color: transparent;
             color: #ffffff;
@@ -84,7 +83,7 @@
             transform: scale(1.02);
         }
 
-        /* Track Cards */
+        
         .track-card {
             background-color: var(--spotify-card);
             border: none;
@@ -130,21 +129,28 @@
             text-overflow: ellipsis;
         }
         
-        /* Audio Player */
+        
         audio { width: 100%; height: 35px; outline: none; }
         audio::-webkit-media-controls-panel { background-color: #282828; }
         audio::-webkit-media-controls-current-time-display,
         audio::-webkit-media-controls-time-remaining-display { color: #ffffff; }
 
-        /* Typography Utils */
+        
         .text-green { color: var(--spotify-green); }
         .text-subdued { color: var(--spotify-text-subdued); }
+        .track-artist a, .artist-link {
+            color: inherit;
+            text-decoration: none;
+        }
+        .track-artist a:hover, .artist-link:hover {
+            color: #ffffff;
+            text-decoration: underline;
+        }
     </style>
     {% include "music/partials/cover_styles.html" %}
 </head>
 <body>
 
-    <!-- Top Navigation -->
     <div class="auth-bar shadow-sm mb-5">
         <a href="{% url 'home' %}" class="brand-logo">
             <i class="fa-solid fa-circle-play"></i> Crescendo
@@ -161,8 +167,10 @@
     </div>
 
     <div class="container mb-5 pb-5">
+
+        {% include "music/partials/messages.html" %}
+
         
-        <!-- Header Section -->
         <div class="row mb-5 mt-4">
             <div class="col-12 text-center">
                 <h1 class="display-5 fw-bold mb-3"><i class="fa-solid fa-heart text-green me-2"></i>Liked Tracks</h1>
@@ -170,28 +178,31 @@
             </div>
         </div>
 
-        <!-- Track Grid -->
         <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-4">
             {% for track in tracks %}
                 <div class="col">
-                    <div class="track-card d-flex flex-column">
+                    <div class="track-card d-flex flex-column"
+                         {% if track.audio_file %}
+                         data-track-src="{{ track.audio_file }}"
+                         data-track-title="{{ track.title }}"
+                         data-track-artist="{% for artist in track.artists.all %}{{ artist.name }}{% if not forloop.last %}, {% endif %}{% empty %}Unknown Artist{% endfor %}"
+                         data-track-cover="{{ track.album.cover_url }}"
+                         data-track-duration="{{ track.duration_sec }}"
+                         {% endif %}>
                         
-                        <!-- Album Cover -->
-                        {% include "music/partials/cover.html" with track=track show_play=False %}
-                        <!-- Track Info & Like Button -->
+                        {% include "music/partials/cover.html" with track=track %}
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div class="text-truncate pe-2">
                                 <h5 class="track-title mb-0" title="{{ track.title }}">{{ track.title }}</h5>
                                 <p class="track-artist mt-1 mb-0 text-truncate">
                                     {% for artist in track.artists.all %}
-                                        {{ artist.name }}{% if not forloop.last %}, {% endif %}
+                                        <a href="{% url 'artist_detail' artist.id %}" class="artist-link">{{ artist.name }}</a>{% if not forloop.last %}, {% endif %}
                                     {% empty %}
                                         Unknown Artist
                                     {% endfor %}
                                 </p>
                             </div>
                             
-                            <!-- The Heart Button -->
                             <div>
                                 <form method="POST" action="{% url 'toggle_like' track.id %}" class="js-like-form" data-track-title="{{ track.title }}">
                                     {% csrf_token %}
@@ -206,20 +217,9 @@
                             </div>
                         </div>
                         
-                        <!-- Audio Player -->
-                        <div class="mt-auto">
-                            {% if track.audio_file %}
-                                <audio controls preload="none">
-                                    <source src="{{ track.audio_file }}" type="audio/mpeg">
-                                    Your browser does not support the audio element.
-                                </audio>
-                            {% endif %}
-                        </div>
-                        
                     </div>
                 </div>
             {% empty %}
-                <!-- Empty State -->
                 <div class="col-12 text-center text-subdued mt-5 w-100">
                     <i class="fa-regular fa-folder-open fa-3x mb-4 text-secondary"></i>
                     <h4>Your library is empty</h4>
@@ -231,11 +231,10 @@
 
     </div>
     
-    {% include "music/partials/track_actions.html" %}
+    {% include "music/partials/player.html" %}
+{% include "music/partials/track_actions.html" %}
 
 <script>
-// On the library page an "unlike" means the track no longer belongs here, so
-// fade its card out instead of leaving a stale entry behind until a refresh.
 document.addEventListener('crescendo:like', (event) => {
     if (event.detail.liked) return;
 

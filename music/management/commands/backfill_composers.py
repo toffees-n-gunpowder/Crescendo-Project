@@ -1,18 +1,7 @@
-"""
-Credit composers on tracks that already exist in the database.
-
-Jamendo only ever credits the performer, so classical tracks arrive with the
-composer buried in the title. This scans every track and adds a 'writer' credit
-for each composer it recognises, which is what makes "artist = Mozart" work.
-
-    python manage.py backfill_composers
-    python manage.py backfill_composers --dry-run
-"""
-
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from music.models import Track
+from music.db import catalog
 from music.services import composers
 from music.services.console import safe
 
@@ -28,18 +17,16 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         dry_run = options['dry_run']
-        # Only the titles are needed, so skip the artist prefetch entirely.
-        tracks = Track.objects.select_related('album')
+        tracks = catalog.tracks_with_album_titles()
 
         scanned = 0
         matched = 0
         credits_added = 0
         per_composer = {}
 
-        for track in tracks.iterator():
+        for track in tracks:
             scanned += 1
-            album_title = track.album.title if track.album_id else ''
-            found = composers.detect(track.title, album_title)
+            found = composers.detect(track.title, track.album_title or '')
             if not found:
                 continue
 
@@ -51,7 +38,7 @@ class Command(BaseCommand):
                     continue
 
                 with transaction.atomic():
-                    if composers.credit(track, canonical):
+                    if composers.credit(track.id, canonical):
                         credits_added += 1
                         self.stdout.write(safe(f'  + {canonical} <- {track.title[:60]}'))
 

@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crescendo | Home</title>
 
-    <!-- Google Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -29,7 +28,7 @@
             min-height: 100vh;
         }
 
-        /* 1. Navigation Bar */
+        
         .auth-bar {
             background-color: rgba(0, 0, 0, 0.8);
             backdrop-filter: blur(10px);
@@ -57,7 +56,7 @@
             color: var(--spotify-green-hover);
         }
 
-        /* Custom Buttons */
+        
         .btn-spotify {
             background-color: var(--spotify-green);
             color: #000000;
@@ -87,7 +86,7 @@
             color: #ffffff;
         }
 
-        /* 2. Hero & Search */
+        
         .search-input {
             background-color: #242424;
             border: 1px solid transparent;
@@ -102,7 +101,7 @@
             box-shadow: none;
         }
 
-        /* Advanced filter panel */
+        
         .filter-panel {
             background-color: var(--spotify-card);
             border: 1px solid #282828;
@@ -144,7 +143,7 @@
             gap: 0.4rem;
         }
 
-        /* 3. Track Cards */
+        
         .track-card {
             background-color: var(--spotify-card);
             border: none;
@@ -177,7 +176,7 @@
             color: #7a7a7a;
         }
 
-        /* Audio Player */
+        
         audio {
             width: 100%;
             height: 35px;
@@ -191,15 +190,22 @@
             color: #ffffff;
         }
 
-        /* Typography Utils */
+        
         .text-green { color: var(--spotify-green); }
         .text-subdued { color: var(--spotify-text-subdued); }
+        .track-artist a, .artist-link {
+            color: inherit;
+            text-decoration: none;
+        }
+        .track-artist a:hover, .artist-link:hover {
+            color: #ffffff;
+            text-decoration: underline;
+        }
     </style>
     {% include "music/partials/cover_styles.html" %}
 </head>
 <body>
 
-    <!-- 1. Top Navigation & Auth Bar -->
     <div class="auth-bar shadow-sm mb-4">
         <a href="{% url 'home' %}" class="brand-logo">
             <i class="fa-solid fa-circle-play"></i> Crescendo
@@ -207,6 +213,22 @@
 
         {% if user.is_authenticated %}
             <div class="d-flex align-items-center">
+                {% if is_admin %}
+                    <a href="{% url 'admin_panel' %}" class="btn btn-sm me-2 fw-bold"
+                       style="background:#e0a800;color:#000;border-radius:50px;padding:.4rem 1rem;">
+                        <i class="fa-solid fa-shield-halved"></i> Admin
+                    </a>
+                    <a href="{% url 'admin_approvals' %}" class="btn btn-sm me-2 fw-bold"
+                       style="background:#e0a800;color:#000;border-radius:50px;padding:.4rem 1rem;">
+                        <i class="fa-solid fa-clipboard-check"></i> Approvals
+                    </a>
+                {% endif %}
+                {% if is_artist %}
+                    <a href="{% url 'artist_studio' %}" class="btn btn-sm me-2 fw-bold"
+                       style="background:#1db954;color:#000;border-radius:50px;padding:.4rem 1rem;">
+                        <i class="fa-solid fa-music"></i> Studio
+                    </a>
+                {% endif %}
                 <a href="{% url 'genres' %}" class="btn btn-outline-spotify btn-sm me-2 border-0 text-white">
                     <i class="fa-solid fa-compact-disc"></i> Genres
                 </a>
@@ -246,14 +268,13 @@
             </div>
         {% endif %}
 
-        <!-- New visitors get a nudge toward the two-step sign up / log in flow -->
         {% if not user.is_authenticated %}
             <div class="row mb-4">
                 <div class="col-md-8 offset-md-2">
                     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 px-3 py-2 rounded-3" style="background-color:#181818; border:1px solid #282828;">
                         <span class="small text-subdued">
                             <i class="fa-solid fa-circle-info me-1 text-green"></i>
-                            New here? Create an account first, then log in to like tracks and build playlists.
+                            New here? Sign up, then log in.
                         </span>
                         <span>
                             <a href="{% url 'register' %}" class="btn btn-spotify btn-sm">Sign Up</a>
@@ -264,13 +285,11 @@
             </div>
         {% endif %}
 
-        <!-- 2. Hero Section & Search Bar -->
         <div class="row mb-4 text-center">
             <div class="col-md-10 offset-md-1">
                 <h1 class="display-6 fw-bold mb-2">Discover timeless music.</h1>
                 <p class="text-subdued mb-4">Search across songs, artists, albums, genres, years and decades.</p>
 
-                <!-- Single GET form: the free-text box and every filter submit together -->
                 <form method="GET" action="{% url 'home' %}" id="search-form">
 
                     <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
@@ -285,7 +304,6 @@
                         {% endif %}
                     </div>
 
-                    <!-- Genre chips, built from the genres actually present in the database -->
                     <div class="d-flex justify-content-center gap-2 mb-3 flex-wrap">
                         <a href="{% url 'home' %}{% if filters.q %}?q={{ filters.q|urlencode }}{% endif %}"
                            class="btn {% if not filters.genre %}btn-spotify{% else %}btn-outline-spotify{% endif %} btn-sm rounded-pill px-3 fw-bold">
@@ -299,7 +317,6 @@
                         {% endfor %}
                     </div>
 
-                    <!-- Collapsible advanced filters -->
                     <div class="text-center mb-3">
                         <button class="btn btn-link text-subdued text-decoration-none small fw-bold"
                                 type="button" data-bs-toggle="collapse" data-bs-target="#advancedFilters"
@@ -315,9 +332,6 @@
                                 <strong>Released</strong> is when this recording came out.
                                 <strong>Musical period</strong> is when the music was composed &mdash;
                                 a 2009 recording of Vivaldi is Baroque, released in the 2000s.
-                                <br>
-                                Counts update with your other filters, and combinations with no
-                                results are hidden.
                             </p>
                             <div class="row g-3">
 
@@ -412,7 +426,6 @@
             </div>
         </div>
 
-        <!-- 3. Result summary, spelling correction and suggestions -->
         {% if filters.q or has_active_filters %}
             <div class="row mb-3">
                 <div class="col-12 d-flex flex-wrap align-items-center gap-2">
@@ -443,7 +456,6 @@
             {% endif %}
         {% endif %}
 
-        <!-- 4. Track Grid -->
         <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-4">
             {% for track in tracks %}
                 <div class="col">
@@ -456,16 +468,14 @@
                          data-track-duration="{{ track.duration_sec }}"
                          {% endif %}>
 
-                        <!-- Album Cover -->
                         {% include "music/partials/cover.html" with track=track %}
 
-                        <!-- Track Info & Like Button -->
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div class="text-truncate pe-2">
                                 <h5 class="track-title mb-0" title="{{ track.title }}">{{ track.title }}</h5>
                                 <p class="track-artist mt-1 mb-1 text-truncate">
                                     {% for artist in track.artists.all %}
-                                        {{ artist.name }}{% if not forloop.last %}, {% endif %}
+                                        <a href="{% url 'artist_detail' artist.id %}" class="artist-link">{{ artist.name }}</a>{% if not forloop.last %}, {% endif %}
                                     {% empty %}
                                         Unknown Artist
                                     {% endfor %}
@@ -477,7 +487,6 @@
                                 </p>
                             </div>
 
-                            <!-- Action Buttons (Like & Add to Playlist) -->
                             <div class="d-flex align-items-center gap-2">
                                 {% if user.is_authenticated %}
                                     <div class="dropdown">
@@ -518,11 +527,9 @@
                             </div>
                         </div>
 
-
                     </div>
                 </div>
             {% empty %}
-                <!-- Empty State, with close-match suggestions when we have them -->
                 <div class="col-12 text-center text-subdued mt-5 w-100">
                     <i class="fa-solid fa-magnifying-glass fa-3x mb-3 text-secondary"></i>
                     <h4>No tracks found</h4>
@@ -545,7 +552,6 @@
             {% endfor %}
         </div>
 
-        <!-- 5. Pagination (carries the active search and filters) -->
         {% if tracks.has_other_pages %}
             <div class="d-flex justify-content-center mt-5">
                 <div class="btn-group">
@@ -571,7 +577,6 @@
     {% include "music/partials/player.html" %}
     {% include "music/partials/track_actions.html" %}
 
-    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

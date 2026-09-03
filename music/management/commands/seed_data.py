@@ -1,22 +1,10 @@
-"""
-Bulk-seed the catalogue from Jamendo.
-
-    python manage.py seed_data                      # 200 popular tracks
-    python manage.py seed_data --limit 500          # 500 tracks
-    python manage.py seed_data --tags jazz --limit 100
-    python manage.py seed_data --spread --limit 60  # 60 per genre, across all genres
-    python manage.py seed_data --flush --limit 300  # wipe catalogue first
-"""
-
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from music.models import Album, AlbumCredit, Artist, Genre, Track, TrackCredit
+from music.db import catalog
 from music.services import jamendo
 from music.services.console import safe
 
-# Used by --spread so a fresh database gets a genuinely varied catalogue
-# instead of 200 tracks that all happen to be rock.
 SPREAD_TAGS = [
     'classical', 'jazz', 'rock', 'pop', 'electronic', 'hiphop',
     'metal', 'folk', 'blues', 'lounge', 'ambient', 'soundtrack',
@@ -90,8 +78,9 @@ class Command(BaseCommand):
             f'\nDone. {total_seen} tracks returned by Jamendo, {total_new} newly added.'
         ))
         self.stdout.write(
-            f'Catalogue now holds {Track.objects.count()} tracks '
-            f'across {Genre.objects.count()} genres and {Artist.objects.count()} artists.'
+            f"Catalogue now holds {catalog.count('music_track')} tracks "
+            f"across {catalog.count('music_genre')} genres and "
+            f"{catalog.count('music_artist')} artists."
         )
 
     def _import_batch(self, items):
@@ -101,20 +90,21 @@ class Command(BaseCommand):
             seen += 1
             try:
                 with transaction.atomic():
-                    track, created = jamendo.import_track(item)
-            except Exception as exc:  # one malformed row shouldn't kill the run
+                    track_id, created = jamendo.import_track(item)
+            except Exception as exc:
                 self.stderr.write(safe(f'  skipped "{item.get("name", "?")}": {exc}'))
                 continue
             if created:
                 new += 1
-                self.stdout.write(safe(f'  + {track.title} - {item.get("artist_name", "?")}'))
+                self.stdout.write(safe(
+                    f'  + {item.get("name", "?")} - {item.get("artist_name", "?")}'
+                ))
         return new, seen
 
     def _flush(self):
         self.stdout.write(self.style.WARNING('Flushing existing catalogue...'))
-        TrackCredit.objects.all().delete()
-        AlbumCredit.objects.all().delete()
-        Track.objects.all().delete()
-        Album.objects.all().delete()
-        Artist.objects.all().delete()
+        deleted = catalog.flush_catalogue()
+        for table, rows in deleted.items():
+            if rows:
+                self.stdout.write(f'  {table}: {rows} rows')
         self.stdout.write(self.style.WARNING('Catalogue cleared.'))

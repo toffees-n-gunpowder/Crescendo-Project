@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crescendo | Playlists</title>
     
-    <!-- Google Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -29,7 +28,7 @@
             min-height: 100vh;
         }
 
-        /* Navigation Bar */
+        
         .auth-bar {
             background-color: rgba(0, 0, 0, 0.8);
             backdrop-filter: blur(10px);
@@ -45,19 +44,19 @@
         .brand-logo { color: var(--spotify-green); font-weight: 800; font-size: 1.5rem; text-decoration: none; }
         .brand-logo:hover { color: var(--spotify-green-hover); }
 
-        /* Buttons */
+        
         .btn-spotify { background-color: var(--spotify-green); color: #000; font-weight: 700; border-radius: 50px; padding: 0.5rem 1.5rem; border: none; }
         .btn-spotify:hover { background-color: var(--spotify-green-hover); color: #000; transform: scale(1.02); }
         .btn-outline-spotify { background-color: transparent; color: #fff; font-weight: 700; border-radius: 50px; padding: 0.5rem 1.5rem; border: 1px solid #727272; }
         .btn-outline-spotify:hover { border-color: #fff; color: #fff; }
 
-        /* Form Input */
+        
         .playlist-input {
             background-color: #242424; border: 1px solid transparent; color: white; border-radius: 50px; padding: 0.75rem 1.5rem;
         }
         .playlist-input:focus { background-color: #2a2a2a; border-color: var(--spotify-text-subdued); color: white; box-shadow: none; }
 
-        /* Playlist Cards */
+        
         .playlist-card {
             background-color: var(--spotify-card); border-radius: 8px; padding: 2rem 1rem; transition: background-color 0.3s ease; text-align: center; height: 100%;
         }
@@ -70,7 +69,6 @@
 </head>
 <body>
 
-    <!-- Top Navigation -->
     <div class="auth-bar shadow-sm mb-5">
         <a href="{% url 'home' %}" class="brand-logo">
             <i class="fa-solid fa-circle-play"></i> Crescendo
@@ -92,8 +90,10 @@
     </div>
 
     <div class="container mb-5 pb-5">
+
+        {% include "music/partials/messages.html" %}
+
         
-        <!-- Header & Create Form -->
         <div class="row mb-5 text-center">
             <div class="col-md-8 offset-md-2">
                 <h1 class="display-5 fw-bold mb-3">Your Playlists</h1>
@@ -107,11 +107,9 @@
             </div>
         </div>
 
-        <!-- Playlist Grid -->
         <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-4">
             {% for playlist in playlists %}
                 <div class="col">
-                    <!-- NEW: Wrap the card in a clickable anchor tag -->
                     <a href="{% url 'playlist_detail' playlist.id %}" class="text-decoration-none text-white">
                         <div class="playlist-card d-flex flex-column justify-content-center">
                             <i class="fa-solid fa-music playlist-icon"></i>
@@ -122,7 +120,6 @@
                     </a>
                 </div>
             {% empty %}
-                <!-- Empty State -->
                 <div class="col-12 text-center text-subdued mt-5 w-100">
                     <i class="fa-solid fa-list fa-3x mb-4 text-secondary"></i>
                     <h4>No playlists yet</h4>
@@ -133,5 +130,6 @@
 
     </div>
     
+{% include "music/partials/player.html" %}
 </body>
 </html>

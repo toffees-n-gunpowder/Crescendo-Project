@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crescendo | Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root { --green:#1db954; --card:#181818; --subdued:#b3b3b3; }
+        body { font-family:'Plus Jakarta Sans',sans-serif; background:#121212; color:#fff; min-height:100vh; }
+        .auth-bar {
+            background:rgba(0,0,0,.8); padding:1rem 2rem; display:flex;
+            justify-content:space-between; align-items:center;
+            border-bottom:1px solid #282828; position:sticky; top:0; z-index:1000;
+        }
+        .brand-logo { font-weight:800; font-size:1.5rem; color:var(--green); text-decoration:none; }
+        .btn-outline-spotify {
+            background:transparent; color:#fff; font-weight:700; border-radius:50px;
+            padding:.4rem 1.2rem; border:1px solid #727272;
+        }
+        .btn-spotify { background:var(--green); color:#000; font-weight:700; border-radius:50px; border:none; }
+        .stat-card { background:var(--card); border:1px solid #282828; border-radius:10px; padding:1rem 1.25rem; }
+        .stat-card .n { font-size:1.6rem; font-weight:800; }
+        .stat-card .k { font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; color:var(--subdued); }
+        table { color:#fff; }
+        .table > :not(caption) > * > * { background:var(--card); color:#fff; border-color:#282828; }
+        .role-badge { font-size:.7rem; font-weight:700; padding:.2rem .6rem; border-radius:50px; }
+        .role-admin    { background:#e0a800; color:#000; }
+        .role-artist   { background:#1db954; color:#000; }
+        .role-listener { background:#3e3e3e; color:#fff; }
+        .form-select-sm { background:#242424; color:#fff; border-color:#3e3e3e; }
+        .text-subdued { color:var(--subdued); }
+        .you { outline:1px solid var(--green); }
+    </style>
+</head>
+<body>
+
+<div class="auth-bar">
+    <a href="{% url 'home' %}" class="brand-logo"><i class="fa-solid fa-circle-play"></i> Crescendo</a>
+    <div class="d-flex align-items-center gap-3">
+        <span class="role-badge role-admin">ADMIN</span>
+        <span class="text-subdued">{{ user.username }}</span>
+        <a href="{% url 'home' %}" class="btn btn-outline-spotify btn-sm">Back to app</a>
+        <form method="POST" action="{% url 'logout' %}">{% csrf_token %}
+            <button class="btn btn-outline-spotify btn-sm">Log Out</button>
+        </form>
+    </div>
+</div>
+
+<div class="container my-4">
+
+    <h1 class="fw-bold mb-1">Admin panel</h1>
+
+    {% include "music/partials/messages.html" %}
+
+    <div class="row g-3 mb-4">
+        {% for role, count in role_counts.items %}
+            <div class="col-6 col-md-2">
+                <div class="stat-card"><div class="n">{{ count }}</div><div class="k">{{ role }}s</div></div>
+            </div>
+        {% endfor %}
+        <div class="col-6 col-md-2"><div class="stat-card"><div class="n">{{ catalogue.tracks }}</div><div class="k">tracks</div></div></div>
+        <div class="col-6 col-md-2"><div class="stat-card"><div class="n">{{ catalogue.artists }}</div><div class="k">artists</div></div></div>
+        <div class="col-6 col-md-2"><div class="stat-card"><div class="n">{{ catalogue.sessions }}</div><div class="k">live sessions</div></div></div>
+    </div>
+
+    <h2 class="h5 fw-bold mb-3">Accounts</h2>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr class="text-subdued small">
+                    <th>User</th><th>Role</th><th>Playlists</th><th>Liked</th>
+                    <th>Status</th><th style="width:250px;">Change role</th><th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for account in accounts %}
+                <tr {% if account.id == user.id %}class="you"{% endif %}>
+                    <td>
+                        <strong>{{ account.username }}</strong>
+                        {% if account.id == user.id %}<span class="text-subdued small">(you)</span>{% endif %}
+                        {% if account.email %}<div class="text-subdued small">{{ account.email }}</div>{% endif %}
+                    </td>
+                    <td>
+                        {% if account.is_staff or account.is_superuser %}
+                            <span class="role-badge role-admin">admin</span>
+                        {% elif account.account_type == 'artist' %}
+                            <span class="role-badge role-artist">artist</span>
+                        {% else %}
+                            <span class="role-badge role-listener">listener</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ account.playlist_count }}</td>
+                    <td>{{ account.liked_count }}</td>
+                    <td>
+                        {% if account.is_active %}
+                            <span class="text-success small">active</span>
+                        {% else %}
+                            <span class="text-danger small">disabled</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if account.id != user.id %}
+                            <form method="POST" action="{% url 'admin_set_role' account.id %}" class="d-flex gap-1">
+                                {% csrf_token %}
+                                <select name="role" class="form-select form-select-sm">
+                                    <option value="listener" {% if not account.is_staff and account.account_type == 'listener' %}selected{% endif %}>listener</option>
+                                    <option value="artist"   {% if not account.is_staff and account.account_type == 'artist' %}selected{% endif %}>artist</option>
+                                    <option value="admin"    {% if account.is_staff or account.is_superuser %}selected{% endif %}>admin</option>
+                                </select>
+                                <button class="btn btn-spotify btn-sm">Set</button>
+                            </form>
+                        {% else %}
+                            <span class="text-subdued small">&mdash;</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if account.id != user.id %}
+                            <form method="POST" action="{% url 'admin_set_active' account.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="active" value="{% if account.is_active %}0{% else %}1{% endif %}">
+                                <button class="btn btn-outline-spotify btn-sm">
+                                    {% if account.is_active %}Disable{% else %}Enable{% endif %}
+                                </button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</body>
+</html>

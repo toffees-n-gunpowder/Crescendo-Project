@@ -1,15 +1,5 @@
-{% comment %}
-In-place like / add-to-playlist.
-
-Intercepts any form marked .js-like-form or .js-playlist-form, posts it with
-fetch(), and updates just that control - no page reload, no scroll jump, no
-losing your place in the results.
-
-Falls back to a normal form submit if fetch fails or the session has expired.
-{% endcomment %}
-
 <style>
-    /* Toast stack, sits above the player bar */
+    
     .toast-stack {
         position: fixed;
         right: 1.25rem;
@@ -37,7 +27,7 @@ Falls back to a normal form submit if fetch fails or the session has expired.
     .mini-toast.warn { border-left-color: #e0a800; }
     .mini-toast.err  { border-left-color: #e91429; }
 
-    /* Heart pop when a like registers */
+    
     @keyframes heart-pop {
         0%   { transform: scale(1); }
         45%  { transform: scale(1.35); }
@@ -83,8 +73,6 @@ Falls back to a normal form submit if fetch fails or the session has expired.
             credentials: 'same-origin',
         });
 
-        // A redirect to the login page means the session expired - let the
-        // browser handle it the old way rather than silently failing.
         const type = response.headers.get('content-type') || '';
         if (!response.ok || !type.includes('application/json')) {
             throw new Error('non-json');
@@ -92,7 +80,6 @@ Falls back to a normal form submit if fetch fails or the session has expired.
         return response.json();
     }
 
-    // --- Likes -------------------------------------------------------------
     document.addEventListener('submit', async (event) => {
         const form = event.target.closest('.js-like-form');
         if (!form) return;
@@ -120,14 +107,13 @@ Falls back to a normal form submit if fetch fails or the session has expired.
             toast(data.liked ? 'Added to your library: ' + title
                              : 'Removed from your library: ' + title);
         } catch (err) {
-            form.submit();  // graceful degradation
+            form.submit();
             return;
         } finally {
             if (button) button.disabled = false;
         }
     });
 
-    // --- Add to playlist ---------------------------------------------------
     document.addEventListener('submit', async (event) => {
         const form = event.target.closest('.js-playlist-form');
         if (!form) return;
@@ -145,7 +131,6 @@ Falls back to a normal form submit if fetch fails or the session has expired.
                 toast('Added "' + data.track_title + '" to ' + data.playlist_name);
             }
 
-            // Close the dropdown the button lives in, without reloading.
             const menu = form.closest('.dropdown-menu');
             if (menu && window.bootstrap) {
                 const trigger = menu.parentElement.querySelector('[data-bs-toggle="dropdown"]');

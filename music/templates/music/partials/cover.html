@@ -1,16 +1,4 @@
-{% load music_extras %}{% comment %}
-One album-art tile.
-
-    {% include "music/partials/cover.html" with track=track %}
-
-Renders a genre-themed backdrop with the track's initials, then lays the real
-artwork over it. If the image is missing, slow or broken, the backdrop is what
-you see - so a tile is never an empty grey box.
-
-Pass show_play=False to omit the play button (e.g. on non-playable lists).
-{% endcomment %}
-
-<div class="cover-image-wrapper cover-theme-{{ track.genre.name|genre_theme }}">
+{% load music_extras %}<div class="cover-image-wrapper cover-theme-{{ track.genre.name|genre_theme }}">
 
     <span class="cover-fallback" aria-hidden="true">
         <i class="{{ track.genre.name|genre_icon }} cover-fallback-icon"></i>

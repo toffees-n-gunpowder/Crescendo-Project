@@ -1,17 +1,8 @@
-{% comment %}
-Styling for cover.html. Include once per page, inside or after <head>.
-
-The goal is cohesion: Jamendo art is user-uploaded and wildly inconsistent in
-palette, crop and quality, so a grid of raw covers reads as noise. Every tile
-gets the same square crop, warm vignette and soft border, which pulls the wall
-together without hiding the artwork.
-{% endcomment %}
-
 <style>
     .cover-image-wrapper {
         position: relative;
         width: 100%;
-        padding-top: 100%;            /* locks every tile to a square */
+        padding-top: 100%;            
         margin-bottom: 0.9rem;
         border-radius: 10px;
         overflow: hidden;
@@ -20,7 +11,7 @@ together without hiding the artwork.
         isolation: isolate;
     }
 
-    /* --- Genre-themed backdrop, always painted underneath the art --------- */
+    
     .cover-fallback {
         position: absolute;
         inset: 0;
@@ -43,7 +34,7 @@ together without hiding the artwork.
         opacity: 0.65;
     }
 
-    /* Warm, muted, low-contrast pairs - cozy rather than neon */
+    
     .cover-theme-classical { background: linear-gradient(150deg, #6b5335, #3a2c1d); }
     .cover-theme-jazz      { background: linear-gradient(150deg, #5c3550, #2e1c2b); }
     .cover-theme-rock      { background: linear-gradient(150deg, #7a4230, #3a1f18); }
@@ -56,7 +47,7 @@ together without hiding the artwork.
     .cover-theme-soundtrack{ background: linear-gradient(150deg, #4a4034, #26211b); }
     .cover-theme-default   { background: linear-gradient(150deg, #4f4a45, #282523); }
 
-    /* --- The real artwork ------------------------------------------------ */
+    
     .cover-art {
         position: absolute;
         inset: 0;
@@ -64,8 +55,7 @@ together without hiding the artwork.
         height: 100%;
         object-fit: cover;
         z-index: 1;
-        /* Take the edge off clashing user-uploaded palettes so the grid reads
-           as one surface instead of a patchwork. */
+        
         filter: saturate(0.92) contrast(1.02) brightness(0.97);
         transition: transform 0.45s ease, filter 0.3s ease;
     }
@@ -75,10 +65,10 @@ together without hiding the artwork.
         filter: saturate(1) contrast(1.03) brightness(1);
     }
 
-    /* A broken or missing image simply reveals the themed backdrop */
+    
     .cover-art-failed { display: none; }
 
-    /* --- Warm vignette that unifies the wall ----------------------------- */
+    
     .cover-sheen {
         position: absolute;
         inset: 0;
@@ -91,6 +81,6 @@ together without hiding the artwork.
         border-radius: 10px;
     }
 
-    /* Play button must sit above art, sheen and backdrop */
+    
     .play-overlay { z-index: 3; }
 </style>

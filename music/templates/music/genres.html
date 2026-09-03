@@ -71,7 +71,7 @@
         }
         .btn-spotify:hover { background-color: var(--spotify-green-hover); color: #000000; }
 
-        /* Genre tiles */
+        
         .genre-card {
             position: relative;
             display: block;
@@ -150,6 +150,8 @@
 
     <div class="container mb-5 pb-5">
 
+        {% include "music/partials/messages.html" %}
+
         <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-4">
             <div>
                 <h1 class="fw-bold mb-1">Browse by genre</h1>
@@ -188,6 +190,8 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% include "music/partials/player.html" %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

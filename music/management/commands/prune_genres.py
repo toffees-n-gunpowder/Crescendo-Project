@@ -1,55 +1,30 @@
-"""
-Collapse niche genres into their parent family.
-
-Jamendo tags are extremely fine-grained: a catalogue of 649 tracks arrives split
-across 39 genres, 27 of which hold fewer than ten tracks ("Smoothjazz" 1,
-"Electroswing" 1, "Chillhop" 1). That makes the genre chips useless.
-
-Rather than deleting those genres and leaving their tracks uncategorised, each
-one is merged into a broader parent - Smoothjazz into Jazz, Chillhop into
-Hip-Hop - and only then removed. Parents resolve transitively, so Soul -> R&B
--> Pop lands on Pop.
-
-    python manage.py prune_genres --dry-run
-    python manage.py prune_genres
-    python manage.py prune_genres --min 20
-"""
-
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from django.db.models import Count
 
-from music.models import Genre, Track
+from music.db import catalog
 
-# Broad families that are kept as-is - the buckets everything else drains into.
 ROOT_GENRES = {
     'Classical', 'Pop', 'Rock', 'Metal', 'Jazz', 'Electronic',
     'Hip-Hop', 'Blues', 'Folk', 'Ambient', 'Chillout', 'Indie',
 }
 
-# niche genre -> parent. Resolved transitively, so a chain is fine.
 PARENT_GENRE = {
-    # soul family
     'R&B': 'Pop',
     'Soul': 'R&B',
     'Funk': 'R&B',
     'Reggae': 'Pop',
     'Corporate': 'Pop',
-    # jazz family
     'Jazzfunk': 'Jazz',
     'Nujazz': 'Jazz',
     'Smoothjazz': 'Jazz',
     'Freejazz': 'Jazz',
     'Electroswing': 'Jazz',
-    # folk / acoustic family
     'Country': 'Folk',
     'World': 'Folk',
     'Latin': 'Folk',
     'Singersongwriter': 'Folk',
-    # hip-hop family
     'Triphop': 'Hip-Hop',
     'Chillhop': 'Hip-Hop',
-    # electronic family
     'Electronica': 'Electronic',
     'Trance': 'Electronic',
     'Electrorock': 'Electronic',
@@ -57,17 +32,14 @@ PARENT_GENRE = {
     'Techno': 'Electronic',
     'Dubstep': 'Electronic',
     'Drumnbass': 'Electronic',
-    # downtempo family
     'Downtempo': 'Chillout',
     'Lounge': 'Chillout',
     'Newage': 'Ambient',
-    # rock family
     'Punk': 'Rock',
     'Bluesrock': 'Blues',
     'Hardcore': 'Metal',
     'Grunge': 'Rock',
     'Alternative': 'Rock',
-    # orchestral family
     'Filmscore': 'Classical',
     'Trailer': 'Classical',
     'Soundtrack': 'Classical',
@@ -79,9 +51,8 @@ PARENT_GENRE = {
 
 
 def resolve_parent(name, seen=None):
-    """Follow the parent chain to a root genre. Returns None if there isn't one."""
     seen = seen or set()
-    if name in seen:            # guard against a cycle in the map
+    if name in seen:
         return None
     seen.add(name)
 
@@ -115,10 +86,8 @@ class Command(BaseCommand):
         minimum = options['min']
         dry_run = options['dry_run']
 
-        small = [
-            g for g in Genre.objects.annotate(c=Count('tracks')).order_by('c')
-            if g.c < minimum
-        ]
+        all_genres = catalog.genre_counts()
+        small = [g for g in all_genres if g.track_count < minimum]
         if not small:
             self.stdout.write(f'Every genre already has {minimum}+ tracks.')
             return
@@ -136,7 +105,7 @@ class Command(BaseCommand):
                 unmapped.append(genre)
                 continue
 
-            count = Track.objects.filter(genre=genre).count()
+            count = genre.track_count
             self.stdout.write(f'  {genre.name:22} ({count:3d}) -> {target_name}')
 
             if dry_run:
@@ -145,20 +114,19 @@ class Command(BaseCommand):
                 continue
 
             with transaction.atomic():
-                target, _ = Genre.objects.get_or_create(name=target_name)
-                moved += Track.objects.filter(genre=genre).update(genre=target)
-                genre.delete()
+                target_id = catalog.get_or_create_genre(target_name)
+                moved += catalog.move_tracks_to_genre(genre.id, target_id)
+                catalog.delete_genre(genre.id)
                 merged += 1
 
         if unmapped:
             self.stdout.write('\nNo parent family defined for:')
             for genre in unmapped:
-                count = Track.objects.filter(genre=genre).count()
-                self.stdout.write(f'  {genre.name:22} ({count:3d} tracks)')
+                self.stdout.write(f'  {genre.name:22} ({genre.track_count:3d} tracks)')
 
             if options['drop_unmapped'] and not dry_run:
                 for genre in unmapped:
-                    genre.delete()
+                    catalog.delete_genre(genre.id)
                 self.stdout.write(self.style.WARNING(
                     f'Deleted {len(unmapped)} unmapped genres; their tracks now have none.'
                 ))
@@ -179,5 +147,5 @@ class Command(BaseCommand):
             f'Merged {merged} genres, moved {moved} tracks.'
         ))
         self.stdout.write('\nRemaining genres:')
-        for g in Genre.objects.annotate(c=Count('tracks')).order_by('-c'):
-            self.stdout.write(f'  {g.name:22} {g.c:4d}')
+        for g in sorted(catalog.genre_counts(), key=lambda x: -x.track_count):
+            self.stdout.write(f'  {g.name:22} {g.track_count:4d}')

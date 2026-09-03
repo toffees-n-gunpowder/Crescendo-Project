@@ -1,15 +1,12 @@
-from django.contrib import admin
+from django.conf import settings
+from django.conf.urls.static import static
 from django.urls import include, path
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('api/', include('music.api.urls')),
 
-    # music.urls must come first: it defines our own login/logout/register views.
-    # django.contrib.auth.urls also claims 'login/' and 'logout/', so if it were
-    # included first it would shadow them and {% url 'login' %} would resolve to
-    # Django's built-in LoginView instead.
     path('', include('music.urls')),
-
-    # Kept for the password-reset / password-change flows.
-    path('', include('django.contrib.auth.urls')),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

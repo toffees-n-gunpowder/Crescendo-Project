@@ -1,32 +1,12 @@
-"""
-Find and clear reused cover art using perceptual hashing.
-
-Some Jamendo labels (OnClassical is the worst offender) upload one promotional
-banner and reuse it as the artwork for every release. Each album gets its own
-cover URL *and* its own re-encoded file, so neither string comparison nor an
-MD5 of the bytes finds them - only the picture is the same.
-
-This fingerprints every cover with dHash, clusters fingerprints that are within
-a few bits of each other, and blanks cover_url on any image shared by several
-albums. A blank cover_url makes partials/cover.html fall back to its
-genre-themed tile, which looks deliberate instead of showing the same banner
-twenty times down the page.
-
-    python manage.py dedupe_covers --dry-run
-    python manage.py dedupe_covers
-    python manage.py dedupe_covers --threshold 2 --max-distance 8
-"""
-
 from concurrent.futures import ThreadPoolExecutor
 
 import requests
 from django.core.management.base import BaseCommand
 
-from music.models import Album, Track
+from music.db import catalog
 from music.services import imagehash
 from music.services.console import safe
 
-# Fetch a small rendition: plenty for a 8x8 fingerprint, cheap to download.
 PROBE_WIDTH = 100
 TIMEOUT = 20
 WORKERS = 12
@@ -51,9 +31,10 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        albums = list(
-            Album.objects.exclude(cover_url='').values('id', 'title', 'cover_url')
-        )
+        albums = [
+            {'id': r.id, 'title': r.title, 'cover_url': r.cover_url}
+            for r in catalog.albums_with_covers()
+        ]
         if not albums:
             self.stdout.write('No albums with cover art.')
             return
@@ -87,9 +68,9 @@ class Command(BaseCommand):
         reused = [g for g in groups if len(g) >= threshold]
 
         titles = {a['id']: a['title'] for a in albums}
-        track_counts = {}
-        for album_id in (i for g in reused for i in g):
-            track_counts[album_id] = Track.objects.filter(album_id=album_id).count()
+        track_counts = catalog.track_count_by_album(
+            [i for g in reused for i in g]
+        )
 
         doomed = []
         if reused:
@@ -118,8 +99,8 @@ class Command(BaseCommand):
             ))
             return
 
-        updated = Album.objects.filter(id__in=doomed).update(cover_url='')
-        remaining = Album.objects.exclude(cover_url='').count()
+        updated = catalog.clear_album_covers(doomed)
+        remaining = len(catalog.albums_with_covers())
         self.stdout.write(self.style.SUCCESS(f'Cleared cover art on {updated} albums.'))
         self.stdout.write(
             f'{remaining} albums keep unique artwork; the rest now render a '
