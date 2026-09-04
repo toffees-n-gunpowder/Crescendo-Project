@@ -1,5 +1,4 @@
 // DBML (Database Markup Language) Schema for Crescendo
-// Copy and paste this code directly into https://dbdiagram.io to visualize the Entity-Relationship (ER) Diagram.
 
 Table users {
   id integer [primary key, increment]
