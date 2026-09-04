@@ -120,7 +120,13 @@ def create_user(username, raw_password, email='', account_type=ROLE_LISTENER,
             username, first_name, last_name, email, account_type,
         ],
     )
-    return get_by_id(user_id)
+
+    user = get_by_id(user_id)
+    if user is None:
+        raise RuntimeError(
+            f'user {username!r} was inserted as id {user_id} but could not be read back'
+        )
+    return user
 
 
 def authenticate(username, raw_password):

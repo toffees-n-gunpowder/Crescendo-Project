@@ -1,12 +1,11 @@
 from datetime import datetime
 from django.contrib import messages
-from django.db.models import Count, OuterRef, Subquery
 from django.http import Http404, JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 
 from .forms import LoginForm, RegistrationForm
 from .services import search as search_service
-from .db import catalog, core as db_core, playlists as playlist_db
+from .db import catalog, playlists as playlist_db
 from .auth import sessions, users
 from .auth.decorators import login_required, role_required
 
@@ -70,16 +69,16 @@ def genres(request):
         total_tracks = cursor.fetchone()[0]
 
         cursor.execute("""
-            SELECT 
-                g.id, 
-                g.name, 
+            SELECT
+                g.id,
+                g.name,
                 COUNT(t.id) AS track_count,
                 (
-                    SELECT a.cover_url 
+                    SELECT a.cover_url
                     FROM music_track sub_t
                     JOIN music_album a ON sub_t.album_id = a.id
-                    WHERE sub_t.genre_id = g.id 
-                      AND a.cover_url IS NOT NULL 
+                    WHERE sub_t.genre_id = g.id
+                      AND a.cover_url IS NOT NULL
                       AND a.cover_url != ''
                     LIMIT 1
                 ) AS cover_url
@@ -234,7 +233,7 @@ def toggle_like(request, track_id):
 def my_library(request):
     with connection.cursor() as cursor:
         cursor.execute("""
-            SELECT t.id, t.title, t.duration_sec, t.audio_file, t.album_id 
+            SELECT t.id, t.title, t.duration_sec, t.audio_file, t.album_id
             FROM music_track t
             JOIN music_likedtrack lt ON t.id = lt.track_id
             WHERE lt.user_id = %s
@@ -259,16 +258,16 @@ def playlists(request):
             playlist_name = request.POST.get('name')
             if playlist_name:
                 cursor.execute("""
-                    INSERT INTO music_playlist (user_id, name,is_public, created_at) 
+                    INSERT INTO music_playlist (user_id, name,is_public, created_at)
                     VALUES (%s,%s,%s, NOW());
                 """, [request.user.id, playlist_name,True])
 
             return redirect('playlists')
 
         cursor.execute("""
-            SELECT id, name, created_at 
-            FROM music_playlist 
-            WHERE user_id = %s 
+            SELECT id, name, created_at
+            FROM music_playlist
+            WHERE user_id = %s
             ORDER BY created_at DESC;
         """, [request.user.id])
 

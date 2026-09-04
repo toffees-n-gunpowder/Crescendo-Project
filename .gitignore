@@ -9,6 +9,8 @@ __pycache__/
 *.pyc
 
 # Local Django Database (if you ever test with it)
-db.sqlite3".claude/" 
+db.sqlite3
 media/
-".claude/" 
+
+# Claude Code local settings
+.claude/

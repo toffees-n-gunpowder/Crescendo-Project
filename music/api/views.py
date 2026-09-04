@@ -28,10 +28,13 @@ def register(request):
     })
 
     if not form.is_valid():
-        clashes = [
-            msg
+        messages = [
+            str(msg)
             for field in ('username', 'email')
             for msg in form.errors.get(field, [])
+        ]
+        clashes = [
+            msg for msg in messages
             if 'already' in msg.lower() or 'taken' in msg.lower()
         ]
         if clashes:
@@ -93,7 +96,8 @@ def me(request):
 @api('GET')
 def track_list(request):
     params = QueryDict(request.META.get('QUERY_STRING', ''))
-    result = search_service.search_tracks(params, page=params.get('page'))
+    result = search_service.search_tracks(
+        params, page=core.page_number(params.get('page')))
     page = result.page
 
     return ok({

@@ -24,7 +24,7 @@ def find_by_name(name):
 
 
 def stats(artist_id):
-    return core.query_one(
+    row = core.query_one(
         f"""
         SELECT
             (SELECT COUNT(DISTINCT t.id)
@@ -38,6 +38,9 @@ def stats(artist_id):
             (SELECT COUNT(*) FROM music_follow WHERE artist_id = %s)  AS follower_count
         """,
         [artist_id, artist_id, artist_id],
+    )
+    return row or core.Row(
+        {'track_count': 0, 'album_count': 0, 'follower_count': 0}
     )
 
 

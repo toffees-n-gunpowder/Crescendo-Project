@@ -66,9 +66,9 @@ def body(request):
         try:
             data = json.loads(raw)
         except ValueError:
-            return None, bad_request('Request body is not valid JSON.')
+            return {}, bad_request('Request body is not valid JSON.')
         if not isinstance(data, dict):
-            return None, bad_request('Request body must be a JSON object.')
+            return {}, bad_request('Request body must be a JSON object.')
         return data, None
 
     return request.POST.dict(), None

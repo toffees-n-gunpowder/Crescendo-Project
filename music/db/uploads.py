@@ -200,7 +200,9 @@ def counts_for_user(user_id):
         """,
         [user_id],
     )
-    return row
+    return row or core.Row(
+        {'total': 0, 'approved': 0, 'pending': 0, 'rejected': 0}
+    )
 
 
 def review_queue(status=PENDING):
