@@ -36,6 +36,7 @@ MIDDLEWARE = [
     'music.auth.middleware.SessionAuthMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'music.errors.ErrorPageMiddleware',
 ]
 
 ROOT_URLCONF = 'crescendo_config.urls'

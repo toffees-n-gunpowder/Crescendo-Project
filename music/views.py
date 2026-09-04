@@ -5,7 +5,7 @@ from django.shortcuts import redirect, render
 
 from .forms import LoginForm, RegistrationForm
 from .services import search as search_service
-from .db import catalog, playlists as playlist_db
+from .db import catalog, core as db_core, playlists as playlist_db, tracks as track_db
 from .auth import sessions, users
 from .auth.decorators import login_required, role_required
 
@@ -231,18 +231,23 @@ def toggle_like(request, track_id):
 
 @login_required
 def my_library(request):
-    with connection.cursor() as cursor:
-        cursor.execute("""
-            SELECT t.id, t.title, t.duration_sec, t.audio_file, t.album_id
-            FROM music_track t
-            JOIN music_likedtrack lt ON t.id = lt.track_id
-            WHERE lt.user_id = %s
-            ORDER BY lt.created_at DESC;
-        """, [request.user.id])
+    liked_tracks = db_core.query("""
+        SELECT t.id, t.title, t.audio_file, t.duration_sec, t.track_number,
+               t.album_id,
+               a.title        AS album__title,
+               a.cover_url    AS album__cover_url,
+               a.release_date AS album__release_date,
+               g.name         AS genre__name
+        FROM music_likedtrack lt
+        JOIN music_track t ON t.id = lt.track_id
+        JOIN music_album a ON a.id = t.album_id
+        LEFT JOIN music_genre g ON g.id = t.genre_id
+        WHERE lt.user_id = %s AND t.approval_status = 'approved'
+        ORDER BY lt.created_at DESC
+    """, [request.user.id])
+    track_db.attach_artists(liked_tracks)
 
-        liked_tracks = dictfetchall(cursor)
-
-    liked_track_ids = [track['id'] for track in liked_tracks]
+    liked_track_ids = [track.id for track in liked_tracks]
 
     context = {
         'tracks': liked_tracks,
@@ -255,7 +260,7 @@ def my_library(request):
 def playlists(request):
     with connection.cursor() as cursor:
         if request.method == 'POST':
-            playlist_name = request.POST.get('name')
+            playlist_name = (request.POST.get('name') or '').strip()[:255]
             if playlist_name:
                 cursor.execute("""
                     INSERT INTO music_playlist (user_id, name,is_public, created_at)
@@ -420,7 +425,7 @@ def rename_playlist(request, playlist_id):
             raise Http404("Playlist not found or access denied")
 
         if request.method == 'POST':
-            new_name = request.POST.get('name')
+            new_name = (request.POST.get('name') or '').strip()[:255]
             if new_name:
                 cursor.execute(
                     "UPDATE music_playlist SET name = %s WHERE id = %s AND user_id = %s;",
@@ -477,7 +482,7 @@ def admin_set_role(request, user_id):
     if request.method != 'POST':
         return redirect('admin_panel')
 
-    target = users.get_by_id(user_id)
+    target = users.get_any_by_id(user_id)
     if not target:
         raise Http404('No such user')
 

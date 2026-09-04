@@ -101,7 +101,7 @@
                 
                 <form method="POST" action="{% url 'playlists' %}" class="d-flex justify-content-center align-items-center gap-2 mt-2">
                     {% csrf_token %}
-                    <input class="form-control playlist-input w-50" type="text" placeholder="Name your new playlist..." name="name" required>
+                    <input class="form-control playlist-input w-50" type="text" placeholder="Name your new playlist..." name="name" maxlength="255" required>
                     <button class="btn btn-spotify py-2 px-4" type="submit">Create</button>
                 </form>
             </div>
