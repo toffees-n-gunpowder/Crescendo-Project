@@ -26,6 +26,11 @@ Table albums {
   title varchar(255) [not null]
   release_date date [not null]
   cover_url varchar(500)
+  created_by_id integer [null]
+
+  indexes {
+    created_by_id
+  }
 }
 
 Table genres {
@@ -47,6 +52,17 @@ Table tracks {
   title varchar(255) [not null]
   duration_sec integer [not null]
   track_number integer [default: 1]
+  approval_status varchar(20) [default: 'approved', note: 'pending, approved, rejected']
+  submitted_by_id integer [null]
+  submitted_at timestamp [null]
+  reviewed_by_id integer [null]
+  reviewed_at timestamp [null]
+  review_note varchar(500) [default: '']
+
+  indexes {
+    approval_status
+    submitted_by_id
+  }
 }
 
 Table playlists {
@@ -142,6 +158,20 @@ Table liked_tracks {
   }
 }
 
+Table app_sessions {
+  session_key varchar(64) [primary key]
+  user_id integer [not null]
+  created_at timestamp [default: `now()`]
+  expires_at timestamp [not null]
+  user_agent varchar(255) [default: '']
+  ip_address varchar(45) [default: '']
+
+  indexes {
+    user_id
+    expires_at
+  }
+}
+
 // Relationships
 Ref: artists.user_id - users.id [delete: set null]
 Ref: albums.artist_id > artists.id [delete: cascade]
@@ -164,3 +194,8 @@ Ref: follows.follower_id > users.id [delete: cascade]
 Ref: follows.artist_id > artists.id [delete: cascade]
 Ref: liked_tracks.user_id > users.id [delete: cascade]
 Ref: liked_tracks.track_id > tracks.id [delete: cascade]
+Ref: app_sessions.user_id > users.id [delete: cascade]
+Ref: albums.created_by_id > users.id [delete: set null]
+Ref: tracks.submitted_by_id > users.id [delete: set null]
+Ref: tracks.reviewed_by_id > users.id [delete: set null]
+
