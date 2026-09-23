@@ -3,6 +3,7 @@
 Table users {
   id integer [primary key, increment]
   username varchar(150) [unique, not null]
+  password varchar(128) [not null]
   email varchar(254) [not null]
   account_type varchar(20) [default: 'listener', note: 'listener or artist']
   subscription_type varchar(20) [default: 'free', note: 'free or premium']
@@ -13,23 +14,25 @@ Table users {
 
 Table artists {
   id integer [primary key, increment]
-  user_id integer [null, unique, note: 'O2O link to users for claimed profiles']
+  user_id integer [null, unique, ref: - users.id, note: 'O2O link to users for claimed profiles, ON DELETE SET NULL']
   name varchar(255) [not null]
   bio text
   verified boolean [default: false]
+
 }
 
 Table albums {
   id integer [primary key, increment]
-  artist_id integer [not null]
+  artist_id integer [not null, ref: > artists.id, note: 'ON DELETE CASCADE']
   title varchar(255) [not null]
   release_date date [not null]
   cover_url varchar(500)
-  created_by_id integer [null]
+  created_by_id integer [null, ref: > users.id, note: 'ON DELETE SET NULL']
 
   indexes {
     created_by_id
   }
+
 }
 
 Table genres {
@@ -45,16 +48,16 @@ Table eras {
 
 Table tracks {
   id integer [primary key, increment]
-  album_id integer [not null]
-  genre_id integer [null]
-  era_id integer [null]
+  album_id integer [not null, ref: > albums.id, note: 'ON DELETE CASCADE']
+  genre_id integer [null, ref: > genres.id, note: 'ON DELETE SET NULL']
+  era_id integer [null, ref: > eras.id, note: 'ON DELETE SET NULL']
   title varchar(255) [not null]
-  duration_sec integer [not null]
-  track_number integer [default: 1]
+  duration_sec integer [not null, note: 'CHECK: duration_sec >= 0']
+  track_number integer [default: 1, note: 'CHECK: track_number >= 0']
   approval_status varchar(20) [default: 'approved', note: 'pending, approved, rejected']
-  submitted_by_id integer [null]
+  submitted_by_id integer [null, ref: > users.id, note: 'ON DELETE SET NULL']
   submitted_at timestamp [null]
-  reviewed_by_id integer [null]
+  reviewed_by_id integer [null, ref: > users.id, note: 'ON DELETE SET NULL']
   reviewed_at timestamp [null]
   review_note varchar(500) [default: '']
 
@@ -62,104 +65,114 @@ Table tracks {
     approval_status
     submitted_by_id
   }
+
 }
 
 Table playlists {
   id integer [primary key, increment]
-  user_id integer [not null]
+  user_id integer [not null, ref: > users.id, note: 'ON DELETE CASCADE']
   name varchar(255) [not null]
   is_public boolean [default: true]
   created_at timestamp [default: `now()`]
+
 }
 
 Table playlist_tracks {
   id integer [primary key, increment]
-  playlist_id integer [not null]
-  track_id integer [not null]
-  position integer [default: 1]
+  playlist_id integer [not null, ref: > playlists.id, note: 'ON DELETE CASCADE']
+  track_id integer [not null, ref: > tracks.id, note: 'ON DELETE CASCADE']
+  position integer [default: 1, note: 'CHECK: position >= 0']
   added_at timestamp [default: `now()`]
 
   indexes {
     (playlist_id, track_id) [unique]
   }
+
 }
 
 Table personal_groups {
   id integer [primary key, increment]
-  owner_id integer [not null]
+  owner_id integer [not null, ref: > users.id, note: 'ON DELETE CASCADE']
   name varchar(255) [not null]
   description text
   is_public boolean [default: true]
   created_at timestamp [default: `now()`]
+
 }
 
 Table group_tracks {
   id integer [primary key, increment]
-  personal_group_id integer [not null]
-  track_id integer [not null]
+  personal_group_id integer [not null, ref: > personal_groups.id, note: 'ON DELETE CASCADE']
+  track_id integer [not null, ref: > tracks.id, note: 'ON DELETE CASCADE']
   added_at timestamp [default: `now()`]
 
   indexes {
     (personal_group_id, track_id) [unique]
   }
+
 }
 
 Table group_playlists {
   id integer [primary key, increment]
-  personal_group_id integer [not null]
-  playlist_id integer [not null]
+  personal_group_id integer [not null, ref: > personal_groups.id, note: 'ON DELETE CASCADE']
+  playlist_id integer [not null, ref: > playlists.id, note: 'ON DELETE CASCADE']
   added_at timestamp [default: `now()`]
 
   indexes {
     (personal_group_id, playlist_id) [unique]
   }
+
 }
 
 Table group_reviews {
   id integer [primary key, increment]
-  group_id integer [not null]
-  reviewer_id integer [not null]
-  rating integer [not null, note: '1 to 5 stars']
+  group_id integer [not null, ref: > personal_groups.id, note: 'ON DELETE CASCADE']
+  reviewer_id integer [not null, ref: > users.id, note: 'ON DELETE CASCADE']
+  rating integer [not null, note: '1 to 5 stars, CHECK: rating >= 0']
   review_text text [not null]
   created_at timestamp [default: `now()`]
 
   indexes {
     (group_id, reviewer_id) [unique]
   }
+
 }
 
 Table play_histories {
   id integer [primary key, increment]
-  user_id integer [not null]
-  track_id integer [not null]
+  user_id integer [not null, ref: > users.id, note: 'ON DELETE CASCADE']
+  track_id integer [not null, ref: > tracks.id, note: 'ON DELETE CASCADE']
   played_at timestamp [default: `now()`]
+
 }
 
 Table follows {
   id integer [primary key, increment]
-  follower_id integer [not null]
-  artist_id integer [not null]
+  follower_id integer [not null, ref: > users.id, note: 'ON DELETE CASCADE']
+  artist_id integer [not null, ref: > artists.id, note: 'ON DELETE CASCADE']
   created_at timestamp [default: `now()`]
 
   indexes {
     (follower_id, artist_id) [unique]
   }
+
 }
 
 Table liked_tracks {
   id integer [primary key, increment]
-  user_id integer [not null]
-  track_id integer [not null]
+  user_id integer [not null, ref: > users.id, note: 'ON DELETE CASCADE']
+  track_id integer [not null, ref: > tracks.id, note: 'ON DELETE CASCADE']
   created_at timestamp [default: `now()`]
 
   indexes {
     (user_id, track_id) [unique]
   }
+
 }
 
 Table app_sessions {
   session_key varchar(64) [primary key]
-  user_id integer [not null]
+  user_id integer [not null, ref: > users.id, note: 'ON DELETE CASCADE']
   created_at timestamp [default: `now()`]
   expires_at timestamp [not null]
   user_agent varchar(255) [default: '']
@@ -169,32 +182,5 @@ Table app_sessions {
     user_id
     expires_at
   }
+
 }
-
-// Relationships
-Ref: artists.user_id - users.id [delete: set null]
-Ref: albums.artist_id > artists.id [delete: cascade]
-Ref: tracks.album_id > albums.id [delete: cascade]
-Ref: tracks.genre_id > genres.id [delete: set null]
-Ref: tracks.era_id > eras.id [delete: set null]
-Ref: playlists.user_id > users.id [delete: cascade]
-Ref: playlist_tracks.playlist_id > playlists.id [delete: cascade]
-Ref: playlist_tracks.track_id > tracks.id [delete: cascade]
-Ref: personal_groups.owner_id > users.id [delete: cascade]
-Ref: group_tracks.personal_group_id > personal_groups.id [delete: cascade]
-Ref: group_tracks.track_id > tracks.id [delete: cascade]
-Ref: group_playlists.personal_group_id > personal_groups.id [delete: cascade]
-Ref: group_playlists.playlist_id > playlists.id [delete: cascade]
-Ref: group_reviews.group_id > personal_groups.id [delete: cascade]
-Ref: group_reviews.reviewer_id > users.id [delete: cascade]
-Ref: play_histories.user_id > users.id [delete: cascade]
-Ref: play_histories.track_id > tracks.id [delete: cascade]
-Ref: follows.follower_id > users.id [delete: cascade]
-Ref: follows.artist_id > artists.id [delete: cascade]
-Ref: liked_tracks.user_id > users.id [delete: cascade]
-Ref: liked_tracks.track_id > tracks.id [delete: cascade]
-Ref: app_sessions.user_id > users.id [delete: cascade]
-Ref: albums.created_by_id > users.id [delete: set null]
-Ref: tracks.submitted_by_id > users.id [delete: set null]
-Ref: tracks.reviewed_by_id > users.id [delete: set null]
-
