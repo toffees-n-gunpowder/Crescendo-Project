@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crescendo | {{ group.name }}</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --spotify-black: #121212;
+            --spotify-card: #181818;
+            --spotify-card-hover: #282828;
+            --spotify-green: #1db954;
+            --spotify-text-subdued: #b3b3b3;
+        }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--spotify-black); color: #ffffff; min-height: 100vh; }
+        .auth-bar { background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid #282828; }
+        .brand-logo { color: var(--spotify-green); font-weight: 800; font-size: 1.5rem; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
+        .btn-outline-spotify { background-color: transparent; color: #ffffff; font-weight: 700; border-radius: 50px; padding: 0.5rem 1.5rem; border: 1px solid #727272; transition: all 0.2s; }
+        .btn-outline-spotify:hover { border-color: #ffffff; color: #ffffff; }
+        .btn-spotify { background-color: var(--spotify-green); color: black; font-weight: 700; border-radius: 50px; padding: 0.5rem 1.5rem; border: none; transition: transform 0.2s; }
+        .btn-spotify:hover { background-color: #1ed760; transform: scale(1.04); }
+        .card { background-color: var(--spotify-card); border: 1px solid #282828; }
+        .card-title { color: white; }
+        
+        .list-group-item { background-color: var(--spotify-card); border-color: #282828; color: white; }
+        .list-group-item:hover { background-color: var(--spotify-card-hover); color: white; }
+        
+        .form-control, .form-select { background-color: #3e3e3e; border-color: #555; color: white; }
+        .form-control:focus, .form-select:focus { background-color: #444; color: white; border-color: var(--spotify-green); box-shadow: 0 0 0 0.25rem rgba(29, 185, 84, 0.25); }
+    </style>
+</head>
+<body>
+
+<div class="auth-bar shadow-sm">
+    <a href="{% url 'home' %}" class="brand-logo">
+        <i class="fa-solid fa-circle-play"></i> Crescendo
+    </a>
+    <div class="d-flex align-items-center">
+        <a href="{% url 'groups' %}" class="btn btn-outline-spotify btn-sm border-0 text-white me-2"><i class="fa-solid fa-arrow-left"></i> Back to Groups</a>
+    </div>
+</div>
+
+<div class="container py-4 mt-4">
+    <div class="mb-4 pb-3 border-bottom border-secondary">
+        <h2 class="mb-1">{{ group.name }}</h2>
+        <p class="text-subdued small mb-2">Created by {{ group.owner_name }} on {{ group.created_at|date:"M d, Y" }}</p>
+        <p class="mb-0">{{ group.description }}</p>
+    </div>
+
+    <div class="row g-4">
+        <!-- Group Tracks -->
+        <div class="col-md-8">
+            <h4 class="mb-3">Tracks</h4>
+            {% if tracks %}
+            <div class="list-group mb-4 shadow-sm">
+                {% for track in tracks %}
+                <div class="list-group-item list-group-item-action d-flex align-items-center py-3">
+                    {% if track.album_cover_url %}
+                    <img src="{{ track.album_cover_url }}" alt="{{ track.album_title }}" class="me-3 rounded" style="width: 48px; height: 48px; object-fit: cover;">
+                    {% else %}
+                    <div class="me-3 rounded bg-secondary d-flex justify-content-center align-items-center" style="width: 48px; height: 48px;">
+                        <i class="fa-solid fa-music text-white"></i>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">{{ track.title }}</h6>
+                        <small class="text-subdued">Added on {{ track.added_at|date:"M d, Y" }}</small>
+                    </div>
+                    <div>
+                        <audio controls controlsList="nodownload" class="bg-dark rounded">
+                            <source src="{{ track.audio_file }}" type="audio/mpeg">
+                        </audio>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-subdued mb-4">No tracks have been added to this group yet.</p>
+            {% endif %}
+
+            <!-- Add Track Form -->
+            <div class="card bg-transparent border-secondary mb-4">
+                <div class="card-body">
+                    <h6 class="card-title mb-3"><i class="fa-solid fa-plus-circle text-green me-1"></i> Add Track to Group</h6>
+                    <form method="post" action="{% url 'group_detail' group.id %}" class="d-flex align-items-center">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_track">
+                        <input type="number" class="form-control me-2" name="track_id" placeholder="Enter Track ID" required style="max-width: 150px;">
+                        <button type="submit" class="btn btn-spotify btn-sm rounded-pill px-3">Add Track</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Group Playlists -->
+            <h4 class="mb-3 mt-5">Playlists</h4>
+            {% if playlists %}
+            <div class="list-group mb-4 shadow-sm">
+                {% for playlist in playlists %}
+                <div class="list-group-item list-group-item-action d-flex align-items-center py-3">
+                    <div class="me-3 rounded bg-secondary d-flex justify-content-center align-items-center" style="width: 48px; height: 48px;">
+                        <i class="fa-solid fa-list text-white"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1"><a href="{% url 'playlist_detail' playlist.id %}" class="text-white text-decoration-none">{{ playlist.name }}</a></h6>
+                        <small class="text-subdued">Added on {{ playlist.added_at|date:"M d, Y" }} by {{ playlist.creator_name }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-subdued mb-4">No playlists have been added to this group yet.</p>
+            {% endif %}
+
+            <!-- Add Playlist Form -->
+            <div class="card bg-transparent border-secondary mb-4">
+                <div class="card-body">
+                    <h6 class="card-title mb-3"><i class="fa-solid fa-plus-circle text-green me-1"></i> Add Playlist to Group</h6>
+                    <form method="post" action="{% url 'group_detail' group.id %}" class="d-flex align-items-center">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_playlist">
+                        <input type="number" class="form-control me-2" name="playlist_id" placeholder="Enter Playlist ID" required style="max-width: 150px;">
+                        <button type="submit" class="btn btn-spotify btn-sm rounded-pill px-3">Add Playlist</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Group Reviews -->
+        <div class="col-md-4">
+            <h4 class="mb-3">Reviews</h4>
+            
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h6 class="card-title mb-3">Write a Review</h6>
+                    <form method="post" action="{% url 'group_detail' group.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="review">
+                        <div class="mb-3">
+                            <select name="rating" class="form-select form-select-sm" required>
+                                <option value="" disabled selected>Select Rating...</option>
+                                <option value="5">5 Stars - Excellent</option>
+                                <option value="4">4 Stars - Good</option>
+                                <option value="3">3 Stars - Average</option>
+                                <option value="2">2 Stars - Poor</option>
+                                <option value="1">1 Star - Terrible</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <textarea name="review_text" class="form-control form-control-sm" rows="3" placeholder="What do you think of this group?" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-spotify btn-sm w-100 rounded-pill">Submit Review</button>
+                    </form>
+                </div>
+            </div>
+
+            {% if reviews %}
+            <div class="list-group shadow-sm">
+                {% for review in reviews %}
+                <div class="list-group-item py-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0 fw-bold">{{ review.reviewer_name }}</h6>
+                        <span class="badge" style="background-color: var(--spotify-green); color: black;"><i class="fa-solid fa-star me-1"></i>{{ review.rating }}</span>
+                    </div>
+                    <p class="mb-2 small">{{ review.review_text }}</p>
+                    <small class="text-subdued">{{ review.created_at|date:"M d, Y" }}</small>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-subdued">No reviews yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+</body>
+</html>

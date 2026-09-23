@@ -94,15 +94,40 @@
             </div>
 
             <div class="col-md-5 col-lg-4">
-                <a href="{% url 'playlists' %}" class="text-decoration-none">
-                    <div class="stat-card">
-                        <i class="fa-solid fa-list fs-3 text-subdued mb-3"></i>
-                        <div class="stat-number">{{ playlist_count }}</div>
-                        <h5 class="text-white fw-bold m-0">Playlists Created</h5>
-                    </div>
-                </a>
+                <div class="stat-card h-100 text-center">
+                    <div class="stat-number">{{ playlist_count }}</div>
+                    <h5 class="text-white mb-3">Custom Playlists</h5>
+                    <a href="{% url 'playlists' %}" class="btn btn-outline-light btn-sm rounded-pill px-4">Manage Playlists</a>
+                </div>
             </div>
 
+        </div>
+
+        <!-- New Social Features Row -->
+        <div class="row g-4 mt-1">
+            <div class="col-md-4 mb-4">
+                <div class="stat-card h-100 py-4 text-center">
+                    <i class="fa-solid fa-clock-rotate-left fa-2x mb-3 text-green"></i>
+                    <h5 class="text-white mb-3">Play History</h5>
+                    <a href="{% url 'history' %}" class="btn btn-outline-light btn-sm rounded-pill px-4">View History</a>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-4">
+                <div class="stat-card h-100 py-4 text-center">
+                    <i class="fa-solid fa-users fa-2x mb-3 text-green"></i>
+                    <h5 class="text-white mb-3">Personal Groups</h5>
+                    <a href="{% url 'groups' %}" class="btn btn-outline-light btn-sm rounded-pill px-4">Manage Groups</a>
+                </div>
+            </div>
+
+            <div class="col-md-4 mb-4">
+                <div class="stat-card h-100 py-4 text-center">
+                    <i class="fa-solid fa-user-plus fa-2x mb-3 text-green"></i>
+                    <h5 class="text-white mb-3">Following</h5>
+                    <a href="{% url 'follows' %}" class="btn btn-outline-light btn-sm rounded-pill px-4">View Artists</a>
+                </div>
+            </div>
         </div>
     </div>
     

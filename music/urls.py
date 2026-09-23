@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_artist, views_artistpage
+from . import views, views_artist, views_artistpage, views_social
 
 urlpatterns = [
     path('', views.home, name='home'),
@@ -13,6 +13,7 @@ urlpatterns = [
     path('artist/<int:artist_id>/follow/', views_artistpage.toggle_follow, name='toggle_follow'),
 
     path('genres/', views.genres, name='genres'),
+    path('eras/', views.eras, name='eras'),
 
     path('like/<int:track_id>/', views.toggle_like, name='toggle_like'),
     path('library/', views.my_library, name='library'),
@@ -37,4 +38,12 @@ urlpatterns = [
     path('admin-panel/', views.admin_panel, name='admin_panel'),
     path('admin-panel/user/<int:user_id>/role/', views.admin_set_role, name='admin_set_role'),
     path('admin-panel/user/<int:user_id>/active/', views.admin_set_active, name='admin_set_active'),
+
+    # Social and Collaboration
+    path('history/', views_social.history, name='history'),
+    path('follows/', views_social.follows, name='follows'),
+    path('groups/', views_social.groups, name='groups'),
+    path('groups/<int:group_id>/', views_social.group_detail, name='group_detail'),
+    path('api/play/<int:track_id>/', views_social.record_play, name='record_play'),
+    path('api/follow/<int:artist_id>/', views_social.toggle_follow, name='toggle_follow'),
 ]

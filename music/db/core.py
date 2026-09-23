@@ -2,6 +2,22 @@ from django.db import connection
 
 NEST = '__'
 
+class Transaction:
+    def __enter__(self):
+        with connection.cursor() as cursor:
+            cursor.execute("BEGIN")
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        with connection.cursor() as cursor:
+            if exc_type is None:
+                cursor.execute("COMMIT")
+            else:
+                cursor.execute("ROLLBACK")
+        return False
+
+def transaction():
+    return Transaction()
 
 class Row:
 

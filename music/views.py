@@ -95,6 +95,28 @@ def genres(request):
     }
     return render(request, 'music/genres.html', context)
 
+def eras(request):
+    total_tracks = db_core.scalar("SELECT COUNT(*) FROM music_track")
+    era_list = catalog.era_counts()
+    
+    # Let's get a random cover URL for each era (if tracks exist)
+    for era in era_list:
+        era.cover_url = db_core.scalar("""
+            SELECT a.cover_url
+            FROM music_track t
+            JOIN music_album a ON t.album_id = a.id
+            WHERE t.era_id = %s
+              AND a.cover_url IS NOT NULL
+              AND a.cover_url != ''
+            LIMIT 1
+        """, [era.id])
+
+    context = {
+        'era_list': era_list,
+        'total_tracks': total_tracks,
+    }
+    return render(request, 'music/eras.html', context)
+
 
 def register_user(request):
     if request.method == 'POST':
@@ -187,35 +209,36 @@ def toggle_like(request, track_id):
     liked_total = 0
 
     if request.method == 'POST':
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT id FROM music_track WHERE id = %s;", [track_id])
-            if not cursor.fetchone():
-                raise Http404("Track not found")
+        with db_core.transaction():
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT id FROM music_track WHERE id = %s;", [track_id])
+                if not cursor.fetchone():
+                    raise Http404("Track not found")
 
-            cursor.execute(
-                "SELECT id FROM music_likedtrack WHERE user_id = %s AND track_id = %s;",
-                [request.user.id, track_id]
-            )
-            existing_like = cursor.fetchone()
-
-            if existing_like:
                 cursor.execute(
-                    "DELETE FROM music_likedtrack WHERE user_id = %s AND track_id = %s;",
+                    "SELECT id FROM music_likedtrack WHERE user_id = %s AND track_id = %s;",
                     [request.user.id, track_id]
                 )
-                liked = False
-            else:
-                cursor.execute(
-                    "INSERT INTO music_likedtrack (user_id, track_id, created_at) VALUES (%s, %s, %s);",
-                    [request.user.id, track_id, datetime.now()]
-                )
-                liked = True
+                existing_like = cursor.fetchone()
 
-            cursor.execute(
-                "SELECT COUNT(*) FROM music_likedtrack WHERE user_id = %s;",
-                [request.user.id]
-            )
-            liked_total = cursor.fetchone()[0]
+                if existing_like:
+                    cursor.execute(
+                        "DELETE FROM music_likedtrack WHERE user_id = %s AND track_id = %s;",
+                        [request.user.id, track_id]
+                    )
+                    liked = False
+                else:
+                    cursor.execute(
+                        "INSERT INTO music_likedtrack (user_id, track_id, created_at) VALUES (%s, %s, %s);",
+                        [request.user.id, track_id, datetime.now()]
+                    )
+                    liked = True
+
+                cursor.execute(
+                    "SELECT COUNT(*) FROM music_likedtrack WHERE user_id = %s;",
+                    [request.user.id]
+                )
+                liked_total = cursor.fetchone()[0]
 
     if _is_ajax(request):
         return JsonResponse({

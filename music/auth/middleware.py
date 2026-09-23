@@ -10,6 +10,20 @@ class SessionAuthMiddleware:
         session_key = request.COOKIES.get(sessions.COOKIE_NAME)
         request.session_key = session_key
         request.user = self._resolve(session_key)
+
+        from django.shortcuts import redirect
+        from django.conf import settings
+        
+        path = request.path_info.lower()
+        allowed_paths = [
+            '/login', '/register', '/admin', 
+            settings.STATIC_URL.lower(), settings.MEDIA_URL.lower()
+        ]
+        
+        is_allowed = any(path.startswith(p) for p in allowed_paths)
+        if not is_allowed and not request.user.is_authenticated:
+            return redirect(f"{settings.LOGIN_URL}?next={request.path}")
+
         return self.get_response(request)
 
     def _resolve(self, session_key):

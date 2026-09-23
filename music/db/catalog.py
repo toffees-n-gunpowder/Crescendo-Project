@@ -293,3 +293,17 @@ def flush_catalogue():
                   'music_track', 'music_album', 'music_artist'):
         deleted[table] = core.execute(f'DELETE FROM {table}')
     return deleted
+
+def top_artists_by_likes():
+    return core.query(
+        """
+        SELECT a.id, a.name, COUNT(lt.id) as total_likes
+        FROM music_artist a
+        JOIN music_trackcredit tc ON tc.artist_id = a.id
+        JOIN music_track t ON t.id = tc.track_id
+        JOIN music_likedtrack lt ON lt.track_id = t.id
+        GROUP BY a.id, a.name
+        ORDER BY total_likes DESC
+        LIMIT 10
+        """
+    )

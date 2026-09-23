@@ -41,6 +41,7 @@ def artist_studio(request):
         'albums': albums,
         'tracks': uploads.tracks_for_user(request.user.id),
         'counts': uploads.counts_for_user(request.user.id),
+        'total_artist_tracks': db_core.scalar("SELECT get_artist_track_count(%s)", [profile_id]),
         'upload_form': TrackUploadForm(albums=albums, genres=genres),
         'profile_form': ArtistProfileForm(initial={
             'name': profile.name if profile else '',
@@ -73,29 +74,30 @@ def artist_upload(request):
     saved_path = default_storage.save(f'uploads/{uuid.uuid4().hex}{extension}', upload)
     audio_url = settings.MEDIA_URL + saved_path
 
-    if data['album_choice']:
-        album_id = int(data['album_choice'])
-    else:
-        album_id = uploads.create_album(
-            data['new_album_title'].strip(),
-            datetime.now().date(),
-            '',
-            request.user.id,
-            profile_id,
+    with db_core.transaction():
+        if data['album_choice']:
+            album_id = int(data['album_choice'])
+        else:
+            album_id = uploads.create_album(
+                data['new_album_title'].strip(),
+                datetime.now().date(),
+                '',
+                request.user.id,
+                profile_id,
+            )
+
+        genre_id = catalog.get_or_create_genre(data['genre']) if data.get('genre') else None
+
+        uploads.create_pending_track(
+            title=data['title'].strip(),
+            album_id=album_id,
+            genre_id=genre_id,
+            duration_sec=data.get('duration_sec') or 0,
+            audio_url=audio_url,
+            submitted_by=request.user.id,
+            artist_id=profile_id,
+            track_number=uploads.next_track_number(album_id),
         )
-
-    genre_id = catalog.get_or_create_genre(data['genre']) if data.get('genre') else None
-
-    uploads.create_pending_track(
-        title=data['title'].strip(),
-        album_id=album_id,
-        genre_id=genre_id,
-        duration_sec=data.get('duration_sec') or 0,
-        audio_url=audio_url,
-        submitted_by=request.user.id,
-        artist_id=profile_id,
-        track_number=uploads.next_track_number(album_id),
-    )
 
     messages.success(
         request,
@@ -150,7 +152,7 @@ def artist_delete_album(request, album_id):
         if track.album_id == album_id:
             _delete_audio_file(track.audio_file)
 
-    uploads.delete_own_album(album_id, request.user.id)
+    db_core.execute("CALL delete_album_proc(%s, %s)", [album_id, request.user.id])
     messages.success(request, f'Deleted the album "{album.title}" and its tracks.')
     return redirect('artist_studio')
 
