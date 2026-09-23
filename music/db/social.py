@@ -12,15 +12,41 @@ def record_play(user_id, track_id):
         [user_id, track_id, datetime.now()]
     )
 
+def record_play_once(user_id, track_id, window_seconds=30):
+    """Records a play unless the same track was already logged moments ago.
+
+    The player restores itself on every page load, so without this guard a
+    single listen would land in the history once per page the user visits.
+    """
+    recent = core.scalar(
+        """
+        SELECT 1 FROM music_playhistory
+        WHERE user_id = %s AND track_id = %s
+          AND played_at > NOW() - (%s * INTERVAL '1 second')
+        LIMIT 1
+        """,
+        [user_id, track_id, window_seconds]
+    )
+    if recent:
+        return 0
+    return record_play(user_id, track_id)
+
+
 def get_play_history(user_id, limit=50):
     return core.query(
         """
         SELECT ph.played_at, t.id, t.title, t.audio_file, t.duration_sec,
-               a.title AS album_title, a.cover_url AS album_cover_url
+               a.title AS album_title, a.cover_url AS album_cover_url,
+               COALESCE(NULLIF(STRING_AGG(DISTINCT ar.name, ', '), ''),
+                        'Unknown Artist') AS artist_names
         FROM music_playhistory ph
         JOIN music_track t ON t.id = ph.track_id
         JOIN music_album a ON a.id = t.album_id
-        WHERE ph.user_id = %s
+        LEFT JOIN music_trackcredit tc ON tc.track_id = t.id
+        LEFT JOIN music_artist ar ON ar.id = tc.artist_id
+        WHERE ph.user_id = %s AND t.approval_status = 'approved'
+        GROUP BY ph.played_at, t.id, t.title, t.audio_file, t.duration_sec,
+                 a.title, a.cover_url
         ORDER BY ph.played_at DESC
         LIMIT %s
         """,
@@ -139,15 +165,82 @@ def group_tracks(group_id):
         """
         SELECT t.id, t.title, t.audio_file, t.duration_sec,
                a.title AS album_title, a.cover_url AS album_cover_url,
-               gt.added_at
+               gt.added_at,
+               COALESCE(NULLIF(STRING_AGG(ar.name, ', ' ORDER BY ar.name), ''),
+                        'Unknown Artist') AS artist_names
         FROM music_grouptrack gt
         JOIN music_track t ON t.id = gt.track_id
         JOIN music_album a ON a.id = t.album_id
+        LEFT JOIN music_trackcredit tc ON tc.track_id = t.id
+        LEFT JOIN music_artist ar ON ar.id = tc.artist_id
         WHERE gt.personal_group_id = %s
+          AND t.approval_status = 'approved'
+        GROUP BY t.id, t.title, t.audio_file, t.duration_sec,
+                 a.title, a.cover_url, gt.added_at
         ORDER BY gt.added_at DESC
         """,
         [group_id]
     )
+
+
+def addable_tracks(group_id):
+    return core.query(
+        """
+        SELECT t.id, t.title,
+               a.title AS album_title,
+               COALESCE(NULLIF(STRING_AGG(ar.name, ', ' ORDER BY ar.name), ''),
+                        'Unknown Artist') AS artist_names
+        FROM music_track t
+        JOIN music_album a ON a.id = t.album_id
+        LEFT JOIN music_trackcredit tc ON tc.track_id = t.id
+        LEFT JOIN music_artist ar ON ar.id = tc.artist_id
+        WHERE t.approval_status = 'approved'
+          AND t.id NOT IN (
+              SELECT track_id FROM music_grouptrack WHERE personal_group_id = %s
+          )
+        GROUP BY t.id, t.title, a.title
+        ORDER BY t.title ASC
+        """,
+        [group_id]
+    )
+
+
+def track_is_addable(track_id):
+    return bool(core.scalar(
+        "SELECT 1 FROM music_track WHERE id = %s AND approval_status = 'approved'",
+        [track_id]
+    ))
+
+def remove_group_track(group_id, track_id):
+    return core.execute(
+        "DELETE FROM music_grouptrack WHERE personal_group_id = %s AND track_id = %s",
+        [group_id, track_id]
+    )
+
+
+def remove_group_playlist(group_id, playlist_id):
+    return core.execute(
+        "DELETE FROM music_groupplaylist WHERE personal_group_id = %s AND playlist_id = %s",
+        [group_id, playlist_id]
+    )
+
+
+def delete_group(group_id, owner_id):
+    owned = core.scalar(
+        "SELECT 1 FROM music_personalgroup WHERE id = %s AND owner_id = %s",
+        [group_id, owner_id]
+    )
+    if not owned:
+        return 0
+
+    core.execute("DELETE FROM music_grouptrack WHERE personal_group_id = %s", [group_id])
+    core.execute("DELETE FROM music_groupplaylist WHERE personal_group_id = %s", [group_id])
+    core.execute("DELETE FROM music_groupreview WHERE group_id = %s", [group_id])
+    return core.execute(
+        "DELETE FROM music_personalgroup WHERE id = %s AND owner_id = %s",
+        [group_id, owner_id]
+    )
+
 
 def add_group_review(group_id, reviewer_id, rating, review_text):
     exists = core.scalar(
@@ -175,13 +268,21 @@ def add_group_review(group_id, reviewer_id, rating, review_text):
 def group_reviews(group_id):
     return core.query(
         """
-        SELECT r.rating, r.review_text, r.created_at, u.username as reviewer_name
+        SELECT r.id, r.rating, r.review_text, r.created_at,
+               r.reviewer_id, u.username as reviewer_name
         FROM music_groupreview r
         JOIN music_user u ON u.id = r.reviewer_id
         WHERE r.group_id = %s
         ORDER BY r.created_at DESC
         """,
         [group_id]
+    )
+
+
+def delete_own_review(review_id, reviewer_id):
+    return core.execute(
+        "DELETE FROM music_groupreview WHERE id = %s AND reviewer_id = %s",
+        [review_id, reviewer_id]
     )
 
 def add_group_playlist(group_id, playlist_id):
@@ -195,6 +296,36 @@ def add_group_playlist(group_id, playlist_id):
             [group_id, playlist_id, datetime.now()]
         )
     return 0
+
+def addable_playlists(user_id, group_id):
+    return core.query(
+        """
+        SELECT p.id, p.name, p.is_public, u.username AS owner_name,
+               (p.user_id = %s) AS is_mine,
+               COUNT(pt.track_id) AS track_count
+        FROM music_playlist p
+        JOIN music_user u ON u.id = p.user_id
+        LEFT JOIN music_playlisttrack pt ON pt.playlist_id = p.id
+        WHERE (p.user_id = %s OR p.is_public = TRUE)
+          AND p.id NOT IN (
+              SELECT playlist_id FROM music_groupplaylist WHERE personal_group_id = %s
+          )
+        GROUP BY p.id, p.name, p.is_public, u.username, p.user_id
+        ORDER BY (p.user_id = %s) DESC, u.username ASC, p.name ASC
+        """,
+        [user_id, user_id, group_id, user_id]
+    )
+
+
+def playlist_is_addable(playlist_id, user_id):
+    return bool(core.scalar(
+        """
+        SELECT 1 FROM music_playlist
+        WHERE id = %s AND (user_id = %s OR is_public = TRUE)
+        """,
+        [playlist_id, user_id]
+    ))
+
 
 def group_playlists(group_id):
     return core.query(

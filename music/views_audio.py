@@ -1,12 +1,16 @@
 import re
 
-from django.http import Http404, HttpResponse
+from django.http import Http404, StreamingHttpResponse
 
 from .auth import users
 from .db import audio as audio_db
 
 RANGE_RE = re.compile(r'bytes=(\d*)-(\d*)')
-MAX_CHUNK = 2 * 1024 * 1024
+
+# Read the response out of the database in pieces rather than building the whole
+# body in memory. A range is served in full: truncating one makes the browser
+# re-open the stream instead of continuing it, which stalls playback mid-track.
+STREAM_STEP = 256 * 1024
 
 
 def _may_listen(request, row):
@@ -41,6 +45,16 @@ def _parse_range(header, size):
     return start, end
 
 
+def _stream(track_id, start, length):
+    sent = 0
+    while sent < length:
+        piece = audio_db.chunk(track_id, start + sent, min(STREAM_STEP, length - sent))
+        if not piece:
+            return
+        sent += len(piece)
+        yield piece
+
+
 def track_audio(request, track_id):
     row = audio_db.meta(track_id)
     if not row:
@@ -53,17 +67,23 @@ def track_audio(request, track_id):
 
     if span:
         start, end = span
-        length = min(end - start + 1, MAX_CHUNK)
-        end = start + length - 1
-        body = audio_db.chunk(track_id, start, length)
-        response = HttpResponse(body, status=206, content_type=row.content_type)
+        length = end - start + 1
+        response = StreamingHttpResponse(
+            _stream(track_id, start, length), status=206, content_type=row.content_type
+        )
         response['Content-Range'] = f'bytes {start}-{end}/{size}'
     else:
-        body = audio_db.chunk(track_id, 0, size)
-        response = HttpResponse(body, content_type=row.content_type)
         length = size
+        response = StreamingHttpResponse(
+            _stream(track_id, 0, size), content_type=row.content_type
+        )
 
     response['Accept-Ranges'] = 'bytes'
     response['Content-Length'] = str(length)
-    response['Cache-Control'] = 'private, max-age=3600'
+
+    # A media element streams a file as a chain of range requests. Without a
+    # validator the browser cannot tell that two partial responses belong to the
+    # same resource, so it re-opens the stream instead of continuing it.
+    response['ETag'] = f'"{track_id}-{size}"'
+    response['Cache-Control'] = 'private, max-age=3600, no-transform'
     return response

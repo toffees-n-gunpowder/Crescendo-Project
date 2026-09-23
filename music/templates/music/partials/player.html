@@ -189,7 +189,8 @@
 </style>
 
 <div class="player-bar" id="playerBar" aria-label="Audio player"
-     data-viewer="{% if user.is_authenticated %}{{ user.id }}{% endif %}">
+     data-viewer="{% if user.is_authenticated %}{{ user.id }}{% endif %}"
+     data-csrf="{{ csrf_token }}">
 
     <button class="player-toggle" id="btnMinimise" type="button" title="Minimise player">
         <i class="fa-solid fa-chevron-down" id="btnMinimiseIcon"></i>
@@ -272,6 +273,12 @@
     let index = -1;
     let seeking = false;
     let restoring = false;
+
+    // What the listener wants, as opposed to what the element is doing right
+    // now. Leaving a page pauses the element; that is not the listener asking
+    // for silence, so it must not be written into the saved state.
+    let wantPlaying = false;
+    let currentTrackId = null;
 
     function fmt(seconds) {
         if (!isFinite(seconds) || seconds < 0) return '0:00';
@@ -372,7 +379,8 @@
             cover: elCover.hidden ? '' : elCover.src,
             duration: parseFloat(seek.max) || 0,
             time: audio.currentTime,
-            playing: !audio.paused && !audio.ended,
+            trackId: currentTrackId,
+            playing: wantPlaying && !audio.ended,
             volume: audio.volume
         };
         try { sessionStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch (e) {}
@@ -397,6 +405,7 @@
         });
 
         audio.src = state.src;
+        currentTrackId = state.trackId || null;
         audio.volume = typeof state.volume === 'number' ? state.volume : 1;
         volume.value = audio.volume * 100;
 
@@ -436,9 +445,25 @@
             }
 
             if (state.playing) {
-                audio.muted = true;
-                audio.play().catch(function () {
-                    audio.muted = wantedMute;
+                wantPlaying = true;
+
+                // Play unmuted first. Starting muted looks like the safe way
+                // past the autoplay rules, but Chrome treats muted media as
+                // video-only and suspends it to save power the moment the tab
+                // is not in front - which killed every resume. Muting is now
+                // only a fallback for a genuine autoplay refusal.
+                audio.play().catch(function (err) {
+                    if (err && err.name === 'NotAllowedError') {
+                        audio.muted = true;
+                        audio.play().then(function () {
+                            audio.muted = wantedMute;
+                        }).catch(function () {
+                            audio.muted = wantedMute;
+                            wantPlaying = false;
+                        });
+                    } else {
+                        wantPlaying = false;
+                    }
                     restoring = false;
                     syncPlayIcons();
                 });
@@ -457,8 +482,10 @@
         markCurrent();
     }
 
-    window.addEventListener('pagehide', save);
-    window.addEventListener('beforeunload', save);
+    let unloading = false;
+    function leaving() { save(); unloading = true; }
+    window.addEventListener('pagehide', leaving);
+    window.addEventListener('beforeunload', leaving);
     setInterval(function () { if (!audio.paused && !restoring) save(); }, 1000);
 
     document.addEventListener('click', function (event) {
@@ -494,6 +521,25 @@
         });
     }
 
+    const CSRF = bar.dataset.csrf || '';
+    let lastReported = null;
+
+    function reportPlay(trackId) {
+        // Only a deliberate start counts. restore() never calls this, so
+        // walking between pages does not re-log the same listen.
+        if (!trackId || !VIEWER || trackId === lastReported) return;
+        lastReported = trackId;
+
+        fetch('/api/play/' + trackId + '/', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': CSRF,
+            },
+            credentials: 'same-origin',
+        }).catch(function () { lastReported = null; });
+    }
+
     function load(i, autoplay) {
         if (i < 0 || i >= queue.length) return;
         const el = queue[i];
@@ -501,6 +547,7 @@
         restoring = false;
 
         audio.src = el.dataset.trackSrc;
+        currentTrackId = el.dataset.trackId || null;
         setNowPlaying(el.dataset.trackTitle, el.dataset.trackArtist, el.dataset.trackCover);
 
         const known = parseFloat(el.dataset.trackDuration || '0');
@@ -586,7 +633,17 @@
         if (queue.length > 1) step(1); else clearSaved();
     });
     audio.addEventListener('play', function () { syncPlayIcons(); save(); });
-    audio.addEventListener('pause', function () { syncPlayIcons(); save(); });
+    audio.addEventListener('play', function () {
+        if (!unloading) wantPlaying = true;
+        if (!restoring) reportPlay(currentTrackId);
+        syncPlayIcons();
+    });
+    audio.addEventListener('pause', function () {
+        if (unloading || restoring) return;
+        wantPlaying = false;
+        syncPlayIcons();
+        save();
+    });
     audio.addEventListener('error', function () {
         if (audio.src) elArtist.textContent = 'Could not load this track.';
         syncPlayIcons();

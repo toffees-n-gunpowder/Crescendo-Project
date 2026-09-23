@@ -1,0 +1,24 @@
+{% if user.is_authenticated %}
+<a href="{% url 'dashboard' %}" class="btn btn-outline-spotify btn-sm border-0 text-white me-1"
+   title="Your dashboard">
+    <i class="fa-solid fa-circle-user"></i> {{ user.username }}
+</a>
+{% if is_artist %}
+<a href="{% url 'artist_studio' %}" class="btn btn-outline-spotify btn-sm border-0 text-white me-1"
+   title="Artist studio">
+    <i class="fa-solid fa-cloud-arrow-up"></i>
+</a>
+{% endif %}
+{% if is_admin %}
+<a href="{% url 'admin_panel' %}" class="btn btn-outline-spotify btn-sm border-0 text-white me-1"
+   title="Admin panel">
+    <i class="fa-solid fa-user-shield"></i>
+</a>
+{% endif %}
+<form method="POST" action="{% url 'logout' %}" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline-spotify btn-sm">Log Out</button>
+</form>
+{% else %}
+<a href="{% url 'login' %}" class="btn btn-spotify btn-sm">Log In</a>
+{% endif %}

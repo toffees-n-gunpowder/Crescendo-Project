@@ -27,6 +27,16 @@ def list_for_user(user_id):
     )
 
 
+def set_visibility(playlist_id, user_id, is_public):
+    return core.execute(
+        """
+        UPDATE music_playlist SET is_public = %s
+        WHERE id = %s AND user_id = %s
+        """,
+        [bool(is_public), playlist_id, user_id],
+    )
+
+
 def tracks_in(playlist_id, user_id):
     rows = core.query(
         f"""
@@ -58,12 +68,12 @@ def liked_ids(user_id):
     )]
 
 
-def create(user_id, name):
+def create(user_id, name, is_public=True):
     return core.insert_returning_id(
         """
         INSERT INTO music_playlist (user_id, name, is_public, created_at)
-        VALUES (%s, %s, TRUE, NOW())
+        VALUES (%s, %s, %s, NOW())
         RETURNING id
         """,
-        [user_id, name],
+        [user_id, name, bool(is_public)],
     )

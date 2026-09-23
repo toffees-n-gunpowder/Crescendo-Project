@@ -86,9 +86,7 @@
             {% endif %}
             <a href="{% url 'library' %}" class="btn btn-outline-spotify btn-sm me-3 border-0 text-green">My Library</a>
             <span class="me-3 text-subdued fw-bold">{{ user.username }}</span>
-            <form method="POST" action="{% url 'logout' %}">{% csrf_token %}
-                <button class="btn btn-outline-spotify btn-sm">Log Out</button>
-            </form>
+            {% include "music/partials/user_nav.html" %}
         {% else %}
             <a href="{% url 'register' %}" class="text-subdued text-decoration-none fw-bold me-3">Sign Up</a>
             <a href="{% url 'login' %}" class="btn btn-spotify btn-sm">Log In</a>
@@ -193,6 +191,7 @@
                         <div class="track-card d-flex flex-column"
                              {% if track.audio_file %}
                              data-track-src="{{ track.audio_file }}"
+                     data-track-id="{{ track.id }}"
                              data-track-title="{{ track.title }}"
                              data-track-artist="{{ artist.name }}"
                              data-track-cover="{{ track.album.cover_url }}"

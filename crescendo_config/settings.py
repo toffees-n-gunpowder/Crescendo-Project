@@ -108,4 +108,4 @@ JAMENDO_API_BASE = 'https://api.jamendo.com/v3.0'
 
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'
-LOGIN_URL = 'login'
+LOGIN_URL = '/login/'

@@ -20,6 +20,20 @@
             --spotify-text-subdued: #b3b3b3;
         }
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--spotify-black); color: #ffffff; min-height: 100vh; }
+        .text-subdued { color: var(--spotify-text-subdued); }
+        .track-card { position: relative; }
+        .track-thumb { width: 48px; height: 48px; object-fit: cover; }
+        .track-cell { position: relative; width: 48px; height: 48px; flex: 0 0 48px; }
+        .track-cell .play-overlay {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+            border: none; border-radius: .375rem; cursor: pointer;
+            background: rgba(0, 0, 0, .55); color: var(--spotify-green);
+            opacity: 0; transition: opacity .2s; font-size: 1.1rem;
+        }
+        .track-cell:hover .play-overlay,
+        .track-card:hover .play-overlay,
+        .play-overlay.is-current { opacity: 1; }
+        .form-control::placeholder { color: #9a9a9a; }
         .auth-bar { background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid #282828; }
         .brand-logo { color: var(--spotify-green); font-weight: 800; font-size: 1.5rem; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
         .list-group-item { background-color: var(--spotify-card); border-color: #282828; color: white; }
@@ -35,7 +49,7 @@
         <i class="fa-solid fa-circle-play"></i> Crescendo
     </a>
     <div class="d-flex align-items-center">
-        <a href="{% url 'dashboard' %}" class="btn btn-outline-spotify btn-sm border-0 text-white me-2">Dashboard</a>
+        {% include "music/partials/user_nav.html" %}
     </div>
 </div>
 
@@ -46,24 +60,38 @@
     {% if tracks %}
     <div class="list-group">
         {% for track in tracks %}
-        <div class="list-group-item list-group-item-action d-flex align-items-center py-3">
-            {% if track.album_cover_url %}
-            <img src="{{ track.album_cover_url }}" alt="{{ track.album_title }}" class="me-3 rounded" style="width: 48px; height: 48px; object-fit: cover;">
-            {% else %}
-            <div class="me-3 rounded bg-secondary d-flex justify-content-center align-items-center" style="width: 48px; height: 48px;">
-                <i class="fa-solid fa-music text-white"></i>
+        <div class="list-group-item list-group-item-action track-card d-flex align-items-center py-3"
+             {% if track.audio_file %}
+             data-track-src="{{ track.audio_file }}"
+                     data-track-id="{{ track.id }}"
+             data-track-title="{{ track.title }}"
+             data-track-artist="{{ track.artist_names }}"
+             data-track-cover="{{ track.album_cover_url }}"
+             data-track-duration="{{ track.duration_sec }}"
+             {% endif %}>
+
+            <div class="track-cell me-3">
+                {% if track.album_cover_url %}
+                <img src="{{ track.album_cover_url }}" alt="{{ track.album_title }}" class="track-thumb rounded">
+                {% else %}
+                <div class="rounded bg-secondary d-flex justify-content-center align-items-center w-100 h-100">
+                    <i class="fa-solid fa-music text-white"></i>
+                </div>
+                {% endif %}
+                {% if track.audio_file %}
+                <button type="button" class="play-overlay" title="Play {{ track.title }}">
+                    <i class="fa-solid fa-play"></i>
+                </button>
+                {% endif %}
             </div>
-            {% endif %}
-            
+
             <div class="flex-grow-1">
-                <h6 class="mb-1">{{ track.title }}</h6>
-                <small class="text-subdued">Played at {{ track.played_at|date:"M d, Y H:i" }}</small>
+                <h6 class="mb-1 track-title">{{ track.title }}</h6>
+                <small class="text-subdued">{{ track.artist_names }} &middot; {{ track.album_title }}</small>
             </div>
-            <div>
-                <audio controls controlsList="nodownload" class="bg-dark rounded">
-                    <source src="{{ track.audio_file }}" type="audio/mpeg">
-                </audio>
-            </div>
+            <small class="text-subdued ms-3 text-nowrap">
+                Played {{ track.played_at|date:"M d, Y H:i" }}
+            </small>
         </div>
         {% endfor %}
     </div>
@@ -71,5 +99,7 @@
     <p class="text-subdued">You haven't played any tracks yet.</p>
     {% endif %}
 </div>
+{% include "music/partials/player.html" %}
+
 </body>
 </html>

@@ -47,6 +47,10 @@
         
         .btn-spotify { background-color: var(--spotify-green); color: #000; font-weight: 700; border-radius: 50px; padding: 0.5rem 1.5rem; border: none; }
         .btn-spotify:hover { background-color: var(--spotify-green-hover); color: #000; transform: scale(1.02); }
+        .visibility-btn { font-size: .7rem; font-weight: 700; border: 1px solid #727272; background: transparent; }
+        .visibility-btn.is-public { color: #1db954; border-color: #1db954; }
+        .visibility-btn.is-private { color: #b3b3b3; }
+        .visibility-btn:hover { border-color: #fff; color: #fff; }
         .btn-outline-spotify { background-color: transparent; color: #fff; font-weight: 700; border-radius: 50px; padding: 0.5rem 1.5rem; border: 1px solid #727272; }
         .btn-outline-spotify:hover { border-color: #fff; color: #fff; }
 
@@ -81,11 +85,8 @@
             <a href="{% url 'library' %}" class="btn btn-outline-spotify btn-sm me-4 border-0 text-white">
                 <i class="fa-solid fa-book-open"></i> My Library
             </a>
-            <span class="me-4 text-subdued fw-bold">Hi, <span class="text-white">{{ user.username }}</span></span>
-            <form method="POST" action="{% url 'logout' %}" style="display:inline;">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-outline-spotify btn-sm">Log Out</button>
-            </form>
+            {% include "music/partials/user_nav.html" %}
+            
         </div>
     </div>
 
@@ -110,14 +111,32 @@
         <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-4">
             {% for playlist in playlists %}
                 <div class="col">
-                    <a href="{% url 'playlist_detail' playlist.id %}" class="text-decoration-none text-white">
-                        <div class="playlist-card d-flex flex-column justify-content-center">
+                    <div class="playlist-card d-flex flex-column justify-content-center position-relative">
+                        <a href="{% url 'playlist_detail' playlist.id %}" class="text-decoration-none text-white">
                             <i class="fa-solid fa-music playlist-icon"></i>
                             <h5 class="fw-bold mb-1">{{ playlist.name }}</h5>
-                            <p class="text-subdued small mb-2">{{ playlist.playlist_tracks.count }} tracks</p>
-                            <p class="text-subdued" style="font-size: 0.75rem;">Created {{ playlist.created_at|date:"M d, Y" }}</p>
-                        </div>
-                    </a>
+                            <p class="text-subdued small mb-2">{{ playlist.track_count }} track{{ playlist.track_count|pluralize }}</p>
+                            <p class="text-subdued mb-2" style="font-size: 0.75rem;">Created {{ playlist.created_at|date:"M d, Y" }}</p>
+                        </a>
+
+                        <form method="POST" action="{% url 'playlists' %}" class="mt-1">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="set_visibility">
+                            <input type="hidden" name="playlist_id" value="{{ playlist.id }}">
+                            {% if playlist.is_public %}
+                                <button type="submit" class="btn btn-sm rounded-pill px-3 visibility-btn is-public"
+                                        title="Public - anyone can add this to a group. Click to make it private.">
+                                    <i class="fa-solid fa-globe"></i> Public
+                                </button>
+                            {% else %}
+                                <input type="hidden" name="is_public" value="on">
+                                <button type="submit" class="btn btn-sm rounded-pill px-3 visibility-btn is-private"
+                                        title="Private - only you can see and use it. Click to make it public.">
+                                    <i class="fa-solid fa-lock"></i> Private
+                                </button>
+                            {% endif %}
+                        </form>
+                    </div>
                 </div>
             {% empty %}
                 <div class="col-12 text-center text-subdued mt-5 w-100">

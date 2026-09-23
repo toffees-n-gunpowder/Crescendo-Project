@@ -43,9 +43,7 @@
         <span class="role-badge role-admin">ADMIN</span>
         <span class="text-subdued">{{ user.username }}</span>
         <a href="{% url 'home' %}" class="btn btn-outline-spotify btn-sm">Back to app</a>
-        <form method="POST" action="{% url 'logout' %}">{% csrf_token %}
-            <button class="btn btn-outline-spotify btn-sm">Log Out</button>
-        </form>
+        {% include "music/partials/user_nav.html" %}
     </div>
 </div>
 

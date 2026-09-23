@@ -281,30 +281,31 @@ def my_library(request):
 
 @login_required
 def playlists(request):
-    with connection.cursor() as cursor:
-        if request.method == 'POST':
-            playlist_name = (request.POST.get('name') or '').strip()[:255]
-            if playlist_name:
-                cursor.execute("""
-                    INSERT INTO music_playlist (user_id, name,is_public, created_at)
-                    VALUES (%s,%s,%s, NOW());
-                """, [request.user.id, playlist_name,True])
+    if request.method == 'POST':
+        action = request.POST.get('action')
 
+        if action == 'set_visibility':
+            playlist_id = request.POST.get('playlist_id')
+            is_public = request.POST.get('is_public') == 'on'
+            if playlist_id and playlist_db.set_visibility(
+                    playlist_id, request.user.id, is_public):
+                messages.success(
+                    request,
+                    'Playlist is now public.' if is_public
+                    else 'Playlist is now private.',
+                )
+            else:
+                messages.error(request, 'That playlist is not yours.')
             return redirect('playlists')
 
-        cursor.execute("""
-            SELECT id, name, created_at
-            FROM music_playlist
-            WHERE user_id = %s
-            ORDER BY created_at DESC;
-        """, [request.user.id])
+        playlist_name = (request.POST.get('name') or '').strip()[:255]
+        if playlist_name:
+            playlist_db.create(request.user.id, playlist_name)
+        return redirect('playlists')
 
-        user_playlists = dictfetchall(cursor)
-
-    context = {
-        'playlists': user_playlists,
-    }
-    return render(request, 'music/playlists.html', context)
+    return render(request, 'music/playlists.html', {
+        'playlists': playlist_db.list_for_user(request.user.id),
+    })
 
 
 @login_required

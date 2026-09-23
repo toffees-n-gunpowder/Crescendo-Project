@@ -20,6 +20,8 @@
             --spotify-text-subdued: #b3b3b3;
         }
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--spotify-black); color: #ffffff; min-height: 100vh; }
+        .text-subdued { color: var(--spotify-text-subdued); }
+        .form-control::placeholder { color: #9a9a9a; }
         .auth-bar { background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid #282828; }
         .brand-logo { color: var(--spotify-green); font-weight: 800; font-size: 1.5rem; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
         .btn-outline-spotify { background-color: transparent; color: #ffffff; font-weight: 700; border-radius: 50px; padding: 0.5rem 1.5rem; border: 1px solid #727272; transition: all 0.2s; }
@@ -44,7 +46,7 @@
         <i class="fa-solid fa-circle-play"></i> Crescendo
     </a>
     <div class="d-flex align-items-center">
-        <a href="{% url 'dashboard' %}" class="btn btn-outline-spotify btn-sm border-0 text-white me-2">Dashboard</a>
+        {% include "music/partials/user_nav.html" %}
     </div>
 </div>
 
@@ -185,5 +187,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% include "music/partials/player.html" %}
+
 </body>
 </html>
