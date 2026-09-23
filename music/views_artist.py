@@ -1,5 +1,3 @@
-import os
-import uuid
 from datetime import datetime
 
 from django.conf import settings
@@ -7,10 +5,11 @@ from django.contrib import messages
 from django.core.files.storage import default_storage
 from django.http import Http404
 from django.shortcuts import redirect, render
+from django.urls import reverse
 
 from .auth import users
 from .auth.decorators import role_required
-from .db import catalog, core as db_core, uploads
+from .db import audio as audio_db, catalog, core as db_core, uploads
 from .forms import ArtistProfileForm, TrackUploadForm
 
 
@@ -70,9 +69,8 @@ def artist_upload(request):
     profile_id = uploads.get_or_create_profile(request.user.id, _display_name(request))
 
     upload = data['audio']
-    extension = os.path.splitext(upload.name)[1].lower()
-    saved_path = default_storage.save(f'uploads/{uuid.uuid4().hex}{extension}', upload)
-    audio_url = settings.MEDIA_URL + saved_path
+    content = upload.read()
+    content_type = audio_db.content_type_for(upload.name)
 
     with db_core.transaction():
         if data['album_choice']:
@@ -88,16 +86,19 @@ def artist_upload(request):
 
         genre_id = catalog.get_or_create_genre(data['genre']) if data.get('genre') else None
 
-        uploads.create_pending_track(
+        track_id = uploads.create_pending_track(
             title=data['title'].strip(),
             album_id=album_id,
             genre_id=genre_id,
             duration_sec=data.get('duration_sec') or 0,
-            audio_url=audio_url,
+            audio_url='',
             submitted_by=request.user.id,
             artist_id=profile_id,
             track_number=uploads.next_track_number(album_id),
         )
+
+        audio_db.store(track_id, content, content_type, upload.name)
+        uploads.set_audio_url(track_id, reverse('track_audio', args=[track_id]))
 
     messages.success(
         request,

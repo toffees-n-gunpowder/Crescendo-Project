@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_artist, views_artistpage, views_social
+from . import views, views_artist, views_artistpage, views_audio, views_social
 
 urlpatterns = [
     path('', views.home, name='home'),
@@ -11,6 +11,8 @@ urlpatterns = [
 
     path('artist/<int:artist_id>/', views_artistpage.artist_detail, name='artist_detail'),
     path('artist/<int:artist_id>/follow/', views_artistpage.toggle_follow, name='toggle_follow'),
+
+    path('track/<int:track_id>/audio/', views_audio.track_audio, name='track_audio'),
 
     path('genres/', views.genres, name='genres'),
     path('eras/', views.eras, name='eras'),

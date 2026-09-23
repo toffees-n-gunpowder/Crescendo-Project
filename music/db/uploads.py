@@ -137,6 +137,12 @@ def create_pending_track(title, album_id, genre_id, duration_sec, audio_url,
     return track_id
 
 
+def set_audio_url(track_id, audio_url):
+    return core.execute(
+        'UPDATE music_track SET audio_file = %s WHERE id = %s', [audio_url, track_id]
+    )
+
+
 def tracks_for_user(user_id):
     return core.query(
         """
