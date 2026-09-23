@@ -51,27 +51,105 @@
 <div class="container py-4 mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="m-0">Personal Groups</h2>
-        <button class="btn btn-spotify" data-bs-toggle="modal" data-bs-target="#createGroupModal">Create Group</button>
+        <div class="d-flex gap-3">
+            <form method="get" action="{% url 'groups' %}" class="d-flex">
+                <input type="text" class="form-control me-2 rounded-pill" style="max-width: 200px; background-color: #282828; border: 1px solid #404040; color: white;" name="q" value="{{ search_query }}" placeholder="Search groups...">
+                <button type="submit" class="btn btn-outline-light rounded-pill"><i class="fa-solid fa-search"></i></button>
+            </form>
+            <button class="btn btn-spotify" data-bs-toggle="modal" data-bs-target="#createGroupModal">Create Group</button>
+        </div>
     </div>
 
-    {% if groups %}
-    <div class="row row-cols-1 row-cols-md-2 g-4">
-        {% for group in groups %}
-        <div class="col">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">{{ group.name }}</h5>
-                    <p class="card-text text-subdued small">Created by {{ group.owner_name }} on {{ group.created_at|date:"M d, Y" }}</p>
-                    <p class="card-text">{{ group.description }}</p>
-                    <a href="{% url 'group_detail' group.id %}" class="btn btn-sm btn-outline-light rounded-pill px-3 mt-2">View Group</a>
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs mb-4 border-secondary" id="groupTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active bg-transparent text-white border-0 fw-bold" id="mine-tab" data-bs-toggle="tab" data-bs-target="#mine" type="button" role="tab" style="border-bottom: 2px solid var(--spotify-green) !important;">
+                My Groups {% if search_query %}<span class="badge bg-secondary ms-1">{{ my_groups|length }}</span>{% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link bg-transparent text-subdued border-0 fw-bold" id="global-tab" data-bs-toggle="tab" data-bs-target="#global" type="button" role="tab">
+                Global Groups {% if search_query %}<span class="badge bg-secondary ms-1">{{ global_groups|length }}</span>{% endif %}
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tabs Content -->
+    <div class="tab-content" id="groupTabsContent">
+        <!-- My Groups Tab -->
+        <div class="tab-pane fade show active" id="mine" role="tabpanel">
+            {% if my_groups %}
+            <div class="row row-cols-1 row-cols-md-2 g-4">
+                {% for group in my_groups %}
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="d-flex align-items-center me-2">
+                                    <h5 class="card-title text-truncate mb-0 me-2">{{ group.name }}</h5>
+                                    {% if not group.is_public %}
+                                    <span class="badge bg-secondary rounded-pill border border-dark"><i class="fa-solid fa-lock fa-xs"></i> Private</span>
+                                    {% endif %}
+                                </div>
+                                <div class="d-flex align-items-center text-warning flex-shrink-0" title="Average Rating: {{ group.avg_rating|floatformat:1 }}">
+                                    <i class="fa-solid fa-star me-1"></i>
+                                    <span class="fw-bold">{{ group.avg_rating|floatformat:1 }}</span>
+                                </div>
+                            </div>
+                            <p class="card-text text-subdued small mb-2">Created by {{ group.owner_name }} on {{ group.created_at|date:"M d, Y" }}</p>
+                            <p class="card-text">{{ group.description }}</p>
+                            <a href="{% url 'group_detail' group.id %}" class="btn btn-sm btn-outline-light rounded-pill px-3 mt-2">View Group</a>
+                        </div>
+                    </div>
                 </div>
+                {% endfor %}
             </div>
+            {% else %}
+            <div class="text-center py-5">
+                <p class="text-subdued fs-5">You haven't created any groups yet.</p>
+                {% if search_query %}
+                    <a href="{% url 'groups' %}" class="btn btn-outline-light rounded-pill mt-2">Clear Search</a>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
-        {% endfor %}
+
+        <!-- Global Groups Tab -->
+        <div class="tab-pane fade" id="global" role="tabpanel">
+            {% if global_groups %}
+            <div class="row row-cols-1 row-cols-md-2 g-4">
+                {% for group in global_groups %}
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="d-flex align-items-center me-2">
+                                    <h5 class="card-title text-truncate mb-0 me-2">{{ group.name }}</h5>
+                                </div>
+                                <div class="d-flex align-items-center text-warning flex-shrink-0" title="Average Rating: {{ group.avg_rating|floatformat:1 }}">
+                                    <i class="fa-solid fa-star me-1"></i>
+                                    <span class="fw-bold">{{ group.avg_rating|floatformat:1 }}</span>
+                                </div>
+                            </div>
+                            <p class="card-text text-subdued small mb-2">Created by {{ group.owner_name }} on {{ group.created_at|date:"M d, Y" }}</p>
+                            <p class="card-text">{{ group.description }}</p>
+                            <a href="{% url 'group_detail' group.id %}" class="btn btn-sm btn-outline-light rounded-pill px-3 mt-2">View Group</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <p class="text-subdued fs-5">No public groups found.</p>
+                {% if search_query %}
+                    <p class="text-subdued small">Try adjusting your search terms.</p>
+                    <a href="{% url 'groups' %}" class="btn btn-outline-light rounded-pill mt-2">Clear Search</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
     </div>
-    {% else %}
-    <p class="text-subdued">No groups available yet.</p>
-    {% endif %}
 </div>
 
 <!-- Create Group Modal -->
@@ -91,6 +169,11 @@
                 <div class="mb-3">
                     <label for="description" class="form-label">Description</label>
                     <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                </div>
+                <div class="form-check form-switch mt-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="is_public" name="is_public" checked>
+                    <label class="form-check-label" for="is_public">Make this group Public</label>
+                    <div class="form-text text-subdued small">If unchecked, only you will be able to see this group on the forum.</div>
                 </div>
             </div>
             <div class="modal-footer">

@@ -71,29 +71,38 @@ def create_group(owner_id, name, description, is_public=True):
         [owner_id, name, description, is_public, datetime.now()]
     )
 
-def list_groups(user_id=None):
-    if user_id:
-        return core.query(
-            """
-            SELECT g.id, g.name, g.description, g.is_public, g.created_at,
-                   u.username as owner_name, g.owner_id
-            FROM music_personalgroup g
-            JOIN music_user u ON u.id = g.owner_id
-            WHERE g.is_public = TRUE OR g.owner_id = %s
-            ORDER BY g.created_at DESC
-            """,
-            [user_id]
-        )
-    return core.query(
-        """
+def list_groups(user_id=None, search_query=None):
+    base_query = """
         SELECT g.id, g.name, g.description, g.is_public, g.created_at,
-               u.username as owner_name, g.owner_id
+               u.username as owner_name, g.owner_id,
+               COALESCE(AVG(r.rating), 0) as avg_rating
         FROM music_personalgroup g
         JOIN music_user u ON u.id = g.owner_id
-        WHERE g.is_public = TRUE
-        ORDER BY g.created_at DESC
-        """
-    )
+        LEFT JOIN music_groupreview r ON r.group_id = g.id
+        WHERE ({visibility_clause})
+    """
+    
+    visibility_clause = "g.is_public = TRUE OR g.owner_id = %s" if user_id else "g.is_public = TRUE"
+    params = [user_id] if user_id else []
+
+    if search_query:
+        base_query += " AND (g.name ILIKE %s OR g.description ILIKE %s OR u.username ILIKE %s)"
+        search_term = f"%{search_query}%"
+        params.extend([search_term, search_term, search_term])
+
+    base_query += """
+        GROUP BY g.id, u.username
+        ORDER BY {order_clause}
+    """
+    
+    if user_id:
+        order_clause = "(g.owner_id = %s) DESC, g.created_at DESC"
+        params.append(user_id)
+    else:
+        order_clause = "g.created_at DESC"
+
+    query = base_query.format(visibility_clause=visibility_clause, order_clause=order_clause)
+    return core.query(query, params)
 
 def get_group(group_id):
     return core.query_one(
@@ -105,6 +114,12 @@ def get_group(group_id):
         WHERE g.id = %s
         """,
         [group_id]
+    )
+
+def update_group_visibility(group_id, is_public):
+    core.execute(
+        "UPDATE music_personalgroup SET is_public = %s WHERE id = %s",
+        [is_public, group_id]
     )
 
 def add_group_track(group_id, track_id):

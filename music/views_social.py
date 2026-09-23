@@ -39,12 +39,23 @@ def groups(request):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         desc = request.POST.get('description', '').strip()
+        is_public = request.POST.get('is_public') == 'on'
         if name:
-            social_db.create_group(request.user.id, name, desc)
+            social_db.create_group(request.user.id, name, desc, is_public=is_public)
             return redirect('groups')
             
-    all_groups = social_db.list_groups(request.user.id)
-    return render(request, 'music/groups.html', {'groups': all_groups})
+    search_query = request.GET.get('q', '').strip()
+    all_groups = social_db.list_groups(request.user.id, search_query=search_query)
+    
+    my_groups = [g for g in all_groups if g['owner_id'] == request.user.id]
+    global_groups = [g for g in all_groups if g['owner_id'] != request.user.id and g['is_public']]
+    
+    context = {
+        'my_groups': my_groups,
+        'global_groups': global_groups,
+        'search_query': search_query
+    }
+    return render(request, 'music/groups.html', context)
 
 @login_required
 def group_detail(request, group_id):
@@ -60,13 +71,28 @@ def group_detail(request, group_id):
             if rating >= 1 and rating <= 5:
                 social_db.add_group_review(group_id, request.user.id, rating, text)
         elif action == 'add_track':
-            track_id = request.POST.get('track_id')
-            if track_id:
-                social_db.add_group_track(group_id, int(track_id))
+            if request.user.id == group.owner_id:
+                track_id = request.POST.get('track_id')
+                if track_id:
+                    social_db.add_group_track(group_id, int(track_id))
+            else:
+                from django.contrib import messages
+                messages.error(request, "Only the group owner can add tracks.")
         elif action == 'add_playlist':
-            playlist_id = request.POST.get('playlist_id')
-            if playlist_id:
-                social_db.add_group_playlist(group_id, int(playlist_id))
+            if request.user.id == group.owner_id:
+                playlist_id = request.POST.get('playlist_id')
+                if playlist_id:
+                    social_db.add_group_playlist(group_id, int(playlist_id))
+            else:
+                from django.contrib import messages
+                messages.error(request, "Only the group owner can add playlists.")
+        elif action == 'edit_visibility':
+            if request.user.id == group.owner_id:
+                is_public = request.POST.get('is_public') == 'on'
+                social_db.update_group_visibility(group_id, is_public)
+            else:
+                from django.contrib import messages
+                messages.error(request, "Only the group owner can change visibility.")
         return redirect('group_detail', group_id=group_id)
 
     tracks = social_db.group_tracks(group_id)
