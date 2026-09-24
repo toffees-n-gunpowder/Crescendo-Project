@@ -539,3 +539,7 @@ def admin_set_active(request, user_id):
         f'{target.username} {"reactivated" if activate else "deactivated"}.',
     )
     return redirect('admin_panel')
+
+def leaderboard(request):
+    top_artists = catalog.top_artists_by_likes()
+    return render(request, 'music/leaderboard.html', {'top_artists': top_artists})

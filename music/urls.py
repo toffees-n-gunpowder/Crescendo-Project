@@ -16,6 +16,7 @@ urlpatterns = [
 
     path('genres/', views.genres, name='genres'),
     path('eras/', views.eras, name='eras'),
+    path('leaderboard/', views.leaderboard, name='leaderboard'),
 
     path('like/<int:track_id>/', views.toggle_like, name='toggle_like'),
     path('library/', views.my_library, name='library'),

@@ -300,6 +300,6 @@ def top_artists_by_likes():
         JOIN music_likedtrack lt ON lt.track_id = t.id
         GROUP BY a.id, a.name
         ORDER BY total_likes DESC
-        LIMIT 10
+        LIMIT 50
         """
     )
