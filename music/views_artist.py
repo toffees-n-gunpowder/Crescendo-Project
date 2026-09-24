@@ -3,6 +3,7 @@ from datetime import datetime
 from django.conf import settings
 from django.contrib import messages
 from django.core.files.storage import default_storage
+from django.db import DatabaseError
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -152,8 +153,11 @@ def artist_delete_album(request, album_id):
         if track.album_id == album_id:
             _delete_audio_file(track.audio_file)
 
-    db_core.execute("CALL delete_album_proc(%s, %s)", [album_id, request.user.id])
-    messages.success(request, f'Deleted the album "{album.title}" and its tracks.')
+    try:
+        db_core.execute("CALL delete_album_proc(%s, %s)", [album_id, request.user.id])
+        messages.success(request, f'Deleted the album "{album.title}" and its tracks.')
+    except DatabaseError as e:
+        messages.error(request, str(e))
     return redirect('artist_studio')
 
 
@@ -188,6 +192,9 @@ def admin_review_track(request, track_id):
     if not track:
         raise Http404('No such track')
 
-    uploads.set_review(track_id, decision, request.user.id, note)
-    messages.success(request, f'"{track.title}" {decision}.')
+    try:
+        uploads.set_review(track_id, decision, request.user.id, note)
+        messages.success(request, f'"{track.title}" {decision}.')
+    except DatabaseError as e:
+        messages.error(request, str(e))
     return redirect('admin_approvals')
