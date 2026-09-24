@@ -1,3 +1,4 @@
+from django.db import DatabaseError
 from django.http import QueryDict
 
 from music.api.helpers import (api, artist_json, auth_required, bad_request,
@@ -426,6 +427,9 @@ def admin_approval_detail(request, track_id):
     if status not in (uploads.APPROVED, uploads.REJECTED):
         return bad_request('status must be "approved" or "rejected".')
 
-    uploads.set_review(track_id, status, request.api_user.id,
-                       str(data.get('note', ''))[:500])
-    return ok({'id': track_id, 'title': track.title, 'status': status})
+    try:
+        uploads.set_review(track_id, status, request.api_user.id,
+                           str(data.get('note', ''))[:500])
+        return ok({'id': track_id, 'title': track.title, 'status': status})
+    except DatabaseError as e:
+        return bad_request(str(e))

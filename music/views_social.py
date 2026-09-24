@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.db import DatabaseError
 from django.shortcuts import render, redirect
 from django.http import Http404, JsonResponse
 from music.auth.decorators import login_required
@@ -81,7 +82,10 @@ def group_detail(request, group_id):
             rating = int(request.POST.get('rating', 0))
             text = request.POST.get('review_text', '').strip()
             if rating >= 1 and rating <= 5:
-                social_db.add_group_review(group_id, request.user.id, rating, text)
+                try:
+                    social_db.add_group_review(group_id, request.user.id, rating, text)
+                except DatabaseError as e:
+                    messages.error(request, str(e))
         elif action == 'add_track':
             if request.user.id != group.owner_id:
                 messages.error(request, "Only the group owner can add tracks.")
@@ -136,10 +140,13 @@ def group_detail(request, group_id):
             else:
                 messages.error(request, "You can only delete your own review.")
         elif action == 'delete_group':
-            if social_db.delete_group(group_id, request.user.id):
-                messages.success(request, f'Group "{group.name}" deleted.')
-                return redirect('groups')
-            messages.error(request, "Only the group owner can delete the group.")
+            try:
+                if social_db.delete_group(group_id, request.user.id):
+                    messages.success(request, f'Group "{group.name}" deleted.')
+                    return redirect('groups')
+                messages.error(request, "Only the group owner can delete the group.")
+            except DatabaseError as e:
+                messages.error(request, str(e))
         elif action == 'edit_visibility':
             if request.user.id == group.owner_id:
                 is_public = request.POST.get('is_public') == 'on'
