@@ -160,3 +160,30 @@ BEGIN
     END IF;
 END;
 $$;
+
+
+-- 7. Procedure to delete one uploaded track safely
+-- Same pattern as delete_album_proc: refuses unless p_user_id uploaded the
+-- track, then removes every row pointing at it before the track itself.
+-- The audit trigger logs the DELETE; music_trackaudio goes by CASCADE.
+CREATE OR REPLACE PROCEDURE delete_track_proc(p_track_id INT, p_user_id INT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM music_track
+        WHERE id = p_track_id AND submitted_by_id = p_user_id
+    ) THEN
+        RAISE EXCEPTION 'Track % does not exist or was not uploaded by user %',
+            p_track_id, p_user_id;
+    END IF;
+
+    DELETE FROM music_trackcredit   WHERE track_id = p_track_id;
+    DELETE FROM music_playlisttrack WHERE track_id = p_track_id;
+    DELETE FROM music_likedtrack    WHERE track_id = p_track_id;
+    DELETE FROM music_playhistory   WHERE track_id = p_track_id;
+    DELETE FROM music_grouptrack    WHERE track_id = p_track_id;
+
+    DELETE FROM music_track WHERE id = p_track_id AND submitted_by_id = p_user_id;
+END;
+$$;

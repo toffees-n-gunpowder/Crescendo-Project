@@ -361,28 +361,31 @@ def admin_user_detail(request, user_id):
     if err:
         return err
 
+    role = None
     if 'role' in data:
         role = str(data['role']).strip()
         if role not in users.ROLES:
             return bad_request(f'role must be one of: {", ".join(users.ROLES)}.')
         if target.id == request.api_user.id and role != users.ROLE_ADMIN:
             return forbidden('You cannot change your own role.')
-        if role == users.ROLE_ADMIN:
-            users.promote_to_admin(target.id)
-        else:
-            try:
-                users.set_account_type(target.id, role)
-            except users.LastAdminError:
-                return conflict('That is the only admin account.')
 
+    active = None
     if 'is_active' in data:
         active = str(data['is_active']).lower() in ('1', 'true', 'yes')
         if target.id == request.api_user.id and not active:
             return forbidden('You cannot deactivate your own account.')
-        try:
-            users.set_active(target.id, active)
-        except users.LastAdminError:
-            return conflict('That is the only active admin account.')
+
+    # Both changes are saved together or not at all
+    try:
+        with core.transaction():
+            if role == users.ROLE_ADMIN:
+                users.promote_to_admin(target.id)
+            elif role:
+                users.set_account_type(target.id, role)
+            if active is not None:
+                users.set_active(target.id, active)
+    except users.LastAdminError as exc:
+        return conflict(str(exc))
 
     return ok({'user': user_json(users.get_any_by_id(user_id))})
 

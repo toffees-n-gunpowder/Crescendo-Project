@@ -39,7 +39,9 @@ CREATE OR REPLACE FUNCTION record_play(p_user_id INT, p_track_id INT,
 RETURNS BOOLEAN AS $$
 BEGIN
     PERFORM pg_advisory_xact_lock(216, p_user_id); 
-    -- lock 
+    -- lock the history so that opening two pages at once doesnt accidentally register 
+    -- the music being played in the history section multiple times in a row
+    -- this lock is slightly different as it locks by name instead of an actual row
     IF EXISTS (
         SELECT 1 FROM music_playhistory
         WHERE user_id = p_user_id

@@ -44,21 +44,23 @@ def update_profile(user_id, name, bio):
 
 
 def create_album(title, release_date, cover_url, owner_user_id, artist_id):
-    album_id = core.insert_returning_id(
-        """
-        INSERT INTO music_album (title, release_date, cover_url, created_by_id)
-        VALUES (%s, %s, %s, %s)
-        RETURNING id
-        """,
-        [title, release_date, cover_url or '', owner_user_id],
-    )
-    core.execute(
-        """
-        INSERT INTO music_albumcredit (album_id, artist_id, role)
-        VALUES (%s, %s, 'primary')
-        """,
-        [album_id, artist_id],
-    )
+    # Album and credit together, so an album never exists without its artist
+    with core.transaction():
+        album_id = core.insert_returning_id(
+            """
+            INSERT INTO music_album (title, release_date, cover_url, created_by_id)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+            """,
+            [title, release_date, cover_url or '', owner_user_id],
+        )
+        core.execute(
+            """
+            INSERT INTO music_albumcredit (album_id, artist_id, role)
+            VALUES (%s, %s, 'primary')
+            """,
+            [album_id, artist_id],
+        )
     return album_id
 
 
@@ -152,14 +154,8 @@ def delete_own_track(track_id, user_id):
     if not owned:
         return 0
 
-    for table in ('music_trackcredit', 'music_playlisttrack', 'music_likedtrack',
-                  'music_playhistory', 'music_grouptrack'):
-        core.execute(f'DELETE FROM {table} WHERE track_id = %s', [track_id])
-
-    return core.execute(
-        'DELETE FROM music_track WHERE id = %s AND submitted_by_id = %s',
-        [track_id, user_id],
-    )
+    core.execute('CALL delete_track_proc(%s, %s)', [track_id, user_id])
+    return 1
 
 
 def counts_for_user(user_id):

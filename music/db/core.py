@@ -1,16 +1,41 @@
 from django.db import connection
+from psycopg2.extensions import TRANSACTION_STATUS_IDLE
 
 NEST = '__'
 
+
+def _in_transaction():
+    if connection.in_atomic_block:
+        return True
+    connection.ensure_connection()
+    return connection.connection.get_transaction_status() != TRANSACTION_STATUS_IDLE
+
+
 class Transaction:
+    """BEGIN ... COMMIT, or ROLLBACK if the block raises.
+
+    Inside an already-open transaction it sets a SAVEPOINT instead, so the
+    inner block can be undone on its own and never commits the outer one early.
+    """
+
     def __enter__(self):
+        self._savepoint = None
         with connection.cursor() as cursor:
-            cursor.execute("BEGIN")
+            if _in_transaction():
+                self._savepoint = f'sp_{id(self)}'
+                cursor.execute(f'SAVEPOINT {self._savepoint}')
+            else:
+                cursor.execute("BEGIN")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         with connection.cursor() as cursor:
-            if exc_type is None:
+            if self._savepoint:
+                if exc_type is None:
+                    cursor.execute(f'RELEASE SAVEPOINT {self._savepoint}')
+                else:
+                    cursor.execute(f'ROLLBACK TO SAVEPOINT {self._savepoint}')
+            elif exc_type is None:
                 cursor.execute("COMMIT")
             else:
                 cursor.execute("ROLLBACK")

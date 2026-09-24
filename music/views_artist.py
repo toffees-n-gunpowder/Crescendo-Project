@@ -72,7 +72,10 @@ def artist_upload(request):
     content = upload.read()
     content_type = audio_db.content_type_for(upload.name)
 
-    with db_core.transaction():
+    with db_core.transaction(): 
+# db_core.transaction() actually determines whether to commit or rollback.
+# if its __exit__ function can decipher whether everything's ok
+# then commit otherwise rollback
         if data['album_choice']:
             album_id = int(data['album_choice'])
         else:
