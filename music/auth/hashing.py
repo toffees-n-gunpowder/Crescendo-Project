@@ -64,3 +64,4 @@ def verify(raw_password, stored):
         return _verify_pbkdf2(raw_password, stored), True
 
     return False, False
+#use salt to make two similar passwords differ

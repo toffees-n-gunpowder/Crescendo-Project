@@ -1,4 +1,3 @@
-from datetime import datetime
 from django.contrib import messages
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
@@ -216,23 +215,10 @@ def toggle_like(request, track_id):
                     raise Http404("Track not found")
 
                 cursor.execute(
-                    "SELECT id FROM music_likedtrack WHERE user_id = %s AND track_id = %s;",
+                    "SELECT toggle_like(%s, %s);",
                     [request.user.id, track_id]
                 )
-                existing_like = cursor.fetchone()
-
-                if existing_like:
-                    cursor.execute(
-                        "DELETE FROM music_likedtrack WHERE user_id = %s AND track_id = %s;",
-                        [request.user.id, track_id]
-                    )
-                    liked = False
-                else:
-                    cursor.execute(
-                        "INSERT INTO music_likedtrack (user_id, track_id, created_at) VALUES (%s, %s, %s);",
-                        [request.user.id, track_id, datetime.now()]
-                    )
-                    liked = True
+                liked = cursor.fetchone()[0]
 
                 cursor.execute(
                     "SELECT COUNT(*) FROM music_likedtrack WHERE user_id = %s;",
@@ -339,16 +325,11 @@ def add_to_playlist(request, track_id, playlist_id):
             exists = cursor.fetchone() is not None
 
             if not exists:
-                cursor.execute(
-                    "SELECT COUNT(*) FROM music_playlisttrack WHERE playlist_id = %s;",
-                    [playlist_id]
-                )
-                current_count = cursor.fetchone()[0]
-
+                # position is filled in by playlisttrack_position_trigger
                 cursor.execute("""
-                    INSERT INTO music_playlisttrack (playlist_id, track_id, position, added_at)
-                    VALUES (%s, %s, %s,NOW());
-                """, [playlist_id, track_id, current_count + 1])
+                    INSERT INTO music_playlisttrack (playlist_id, track_id, added_at)
+                    VALUES (%s, %s, NOW());
+                """, [playlist_id, track_id])
                 added = True
             else:
                 added = False
@@ -516,14 +497,15 @@ def admin_set_role(request, user_id):
         if target.id == request.user.id:
             messages.error(request, 'You cannot change your own role here.')
             return redirect('admin_panel')
-        if (target.is_staff or target.is_superuser) and users.admin_count() <= 1:
-            messages.error(request, 'That is the only admin account - promote someone else first.')
-            return redirect('admin_panel')
 
     if new_role == users.ROLE_ADMIN:
         users.promote_to_admin(target.id)
     elif new_role in (users.ROLE_LISTENER, users.ROLE_ARTIST):
-        users.set_account_type(target.id, new_role)
+        try:
+            users.set_account_type(target.id, new_role)
+        except users.LastAdminError:
+            messages.error(request, 'That is the only admin account - promote someone else first.')
+            return redirect('admin_panel')
     else:
         messages.error(request, 'Unknown role.')
         return redirect('admin_panel')
@@ -546,10 +528,11 @@ def admin_set_active(request, user_id):
         return redirect('admin_panel')
 
     activate = request.POST.get('active') == '1'
-    users.set_active(target.id, activate)
-
-    if not activate:
-        sessions.destroy_all_for_user(target.id)
+    try:
+        users.set_active(target.id, activate)
+    except users.LastAdminError:
+        messages.error(request, 'That is the only active admin account.')
+        return redirect('admin_panel')
 
     messages.success(
         request,

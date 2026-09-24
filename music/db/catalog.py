@@ -15,10 +15,6 @@ def get_or_create_artist(name):
     )
 
 
-def artist_id_by_name(name):
-    return core.scalar('SELECT id FROM music_artist WHERE name = %s LIMIT 1', [name])
-
-
 def get_or_create_genre(name):
     existing = core.scalar('SELECT id FROM music_genre WHERE name = %s LIMIT 1', [name])
     if existing:

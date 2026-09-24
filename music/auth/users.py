@@ -1,3 +1,5 @@
+from django.db import DatabaseError
+
 from music.auth import hashing
 from music.db import core
 
@@ -194,10 +196,26 @@ def promote_to_admin(user_id):
     )
 
 
+class LastAdminError(Exception):
+    """Raised when a change would leave the site with no active admin."""
+
+
+LAST_ADMIN_SQLSTATE = 'CR001'  # raised by keep_last_admin_trigger
+
+
+def _execute_user_update(sql, params):
+    try:
+        return core.execute(sql, params)
+    except DatabaseError as exc:
+        if getattr(exc.__cause__, 'pgcode', None) == LAST_ADMIN_SQLSTATE:
+            raise LastAdminError(str(exc.__cause__.diag.message_primary)) from exc
+        raise
+
+
 def set_account_type(user_id, account_type):
     if account_type not in (ROLE_LISTENER, ROLE_ARTIST):
         raise ValueError(f'unknown account type: {account_type}')
-    return core.execute(
+    return _execute_user_update(
         """
         UPDATE music_user
         SET account_type = %s, is_staff = FALSE, is_superuser = FALSE
@@ -208,7 +226,8 @@ def set_account_type(user_id, account_type):
 
 
 def set_active(user_id, is_active):
-    return core.execute(
+    # Deactivating also logs the user out everywhere (user_deactivated_trigger)
+    return _execute_user_update(
         'UPDATE music_user SET is_active = %s WHERE id = %s', [bool(is_active), user_id]
     )
 

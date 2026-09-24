@@ -87,35 +87,9 @@ def find_own_album(album_id, user_id):
     )
 
 
-def delete_own_album(album_id, user_id):
-    owned = find_own_album(album_id, user_id)
-    if not owned:
-        return 0
-
-    core.execute(
-        """
-        DELETE FROM music_trackcredit
-        WHERE track_id IN (SELECT id FROM music_track WHERE album_id = %s)
-        """,
-        [album_id],
-    )
-    for table in ('music_playlisttrack', 'music_likedtrack',
-                  'music_playhistory', 'music_grouptrack'):
-        core.execute(
-            f'DELETE FROM {table} '
-            'WHERE track_id IN (SELECT id FROM music_track WHERE album_id = %s)',
-            [album_id],
-        )
-    core.execute('DELETE FROM music_track WHERE album_id = %s', [album_id])
-    core.execute('DELETE FROM music_albumcredit WHERE album_id = %s', [album_id])
-    return core.execute(
-        'DELETE FROM music_album WHERE id = %s AND created_by_id = %s',
-        [album_id, user_id],
-    )
-
-
 def create_pending_track(title, album_id, genre_id, duration_sec, audio_url,
-                         submitted_by, artist_id, track_number=1):
+                         submitted_by, artist_id, track_number=None):
+    # A None track_number is filled in by track_number_trigger
     track_id = core.insert_returning_id(
         """
         INSERT INTO music_track (title, album_id, genre_id, era_id, duration_sec,
@@ -160,13 +134,6 @@ def tracks_for_user(user_id):
         """,
         [user_id],
     )
-
-
-def next_track_number(album_id):
-    return (core.scalar(
-        'SELECT COALESCE(MAX(track_number), 0) + 1 FROM music_track WHERE album_id = %s',
-        [album_id],
-    ) or 1)
 
 
 def find_own_track(track_id, user_id):
@@ -238,17 +205,5 @@ def pending_count():
 
 
 def set_review(track_id, status, admin_id, note=''):
-    if status not in (APPROVED, REJECTED, PENDING):
-        raise ValueError(f'unknown approval status: {status}')
-
-    return core.execute(
-        """
-        UPDATE music_track
-        SET approval_status = %s,
-            reviewed_by_id  = %s,
-            reviewed_at     = NOW(),
-            review_note     = %s
-        WHERE id = %s
-        """,
-        [status, admin_id, note[:500], track_id],
-    )
+    core.execute('CALL review_track(%s, %s, %s, %s)',
+                 [track_id, status, admin_id, note or ''])

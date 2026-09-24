@@ -127,18 +127,4 @@ def is_following(user_id, artist_id):
 
 
 def toggle_follow(user_id, artist_id):
-    if is_following(user_id, artist_id):
-        core.execute(
-            'DELETE FROM music_follow WHERE follower_id = %s AND artist_id = %s',
-            [user_id, artist_id],
-        )
-        return False
-
-    core.execute(
-        """
-        INSERT INTO music_follow (follower_id, artist_id, created_at)
-        VALUES (%s, %s, NOW())
-        """,
-        [user_id, artist_id],
-    )
-    return True
+    return core.scalar('SELECT toggle_follow(%s, %s)', [user_id, artist_id])

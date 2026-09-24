@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect
 from django.http import Http404, JsonResponse
 from music.auth.decorators import login_required
 from music.db import social as social_db
-from music.db import catalog as catalog_db
+from music.db import artists as artist_db
 
 @login_required
 def history(request):
@@ -18,11 +18,11 @@ def follows(request):
 @login_required
 def toggle_follow(request, artist_id):
     if request.method == 'POST':
-        artist = catalog_db.artist_id_by_name(str(artist_id)) # Not exactly what we need if artist_id is ID. Wait, let's just use it directly.
-        
-        # We need a db method to verify artist exists. Let's just catch if it fails or assume it's good.
-        is_following = social_db.toggle_follow(request.user.id, artist_id)
-        
+        if not artist_db.get(artist_id):
+            raise Http404('No such artist')
+
+        is_following = artist_db.toggle_follow(request.user.id, artist_id)
+
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'following': is_following, 'artist_id': artist_id})
     return redirect('follows')

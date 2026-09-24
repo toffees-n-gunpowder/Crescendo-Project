@@ -14,9 +14,15 @@ concatenated SQL will be penalised as an SQL-injection defect."*
 
 **Injection policy, applied everywhere below:** user values are *never* placed
 into SQL text. They travel as `%s` placeholders in a separate params list, so
-psycopg2 escapes them. The only text ever interpolated into SQL is identifiers
-we control — an `ORDER BY` clause chosen from a fixed whitelist, and a table
-name checked against a hard-coded allowlist.
+psycopg2 escapes them. The only text ever interpolated into SQL is text we
+control — an `ORDER BY` clause chosen from a fixed whitelist, table names taken
+from hard-coded tuples or allowlists, and the two fixed clauses `list_groups`
+picks between in code.
+
+**Where logic lives:** rules that must never be skipped (auditing, numbering,
+safe deletes, security checks) run inside PostgreSQL as PL/pgSQL triggers,
+functions and procedures — see §8b. Python calls them with `SELECT fn(...)` or
+`CALL proc(...)`.
 
 Status legend: **[done]** implemented and verified · **[todo]** planned
 
@@ -91,10 +97,22 @@ shell without an HTTP request.
 | `home` | liked track ids; user playlists | **[done]** |
 | `genres` | total count; genres + count + one cover per genre (correlated subquery) | **[done]** |
 | `register_user` / `login_user` / `logout_user` | via `music/auth/` | **[done]** |
-| `toggle_like` | existence check, then INSERT or DELETE | **[done]** |
-| `add_to_playlist` | ownership check, duplicate check, position, INSERT | **[done]** |
+| `toggle_like` | existence check, then `SELECT toggle_like(user, track)` (PL/pgSQL, `005_business_rules.sql`) | **[done]** |
+| `add_to_playlist` | ownership check, duplicate check, INSERT (position set by `playlisttrack_position_trigger`) | **[done]** |
 | `my_library`, `playlists`, `playlist_detail`, `remove_from_playlist`, `delete_playlist`, `rename_playlist`, `dashboard` | see file | **[done]** |
+| `eras` | total count; `catalog.era_counts()` + one cover per era | **[done]** |
+| `admin_panel` | `users.list_users()`, `role_counts()`, `admin_count()` — admin only | **[done]** |
+| `admin_set_role` / `admin_set_active` | `users.set_account_type` / `promote_to_admin` / `set_active`; `LastAdminError` shown as a message | **[done]** |
 | `dictfetchall(cursor)` | helper — zips `cursor.description` with rows | **[done]** |
+
+## 4b. Other view modules
+
+| Module | Views | Data access |
+|---|---|---|
+| `views_artist.py` | `artist_studio`, `artist_upload`, `artist_update_profile`, `artist_delete_track`, `artist_delete_album` (artist or admin); `admin_approvals`, `admin_review_track` (admin) | `uploads.*`, `audio.store`, `get_artist_track_count()`, `CALL delete_album_proc`, `uploads.set_review` → `CALL review_track` |
+| `views_artistpage.py` | `artist_detail`, `toggle_follow` | `artists.*` |
+| `views_social.py` | `history`, `follows`, `toggle_follow`, `record_play` (JSON), `groups`, `group_detail` (review, add/remove track or playlist, delete review, delete group, visibility) | `social.*`, `artists.toggle_follow` |
+| `views_audio.py` | `track_audio` — streams uploaded audio with HTTP range support | `audio.meta` + `audio.chunk`; pending/rejected audio only for its uploader or an admin |
 
 ---
 
@@ -118,6 +136,10 @@ Replaces `django.contrib.auth`.
 | `get_by_id` / `get_by_username` **[done]** | `Row` or `None` | Parameterised SELECT; `get_by_id` also requires `is_active`. |
 | `username_exists` / `email_exists` **[done]** | `bool` | `SELECT 1 ... LIMIT 1`, case-insensitive. Drives the 409 on duplicate registration. |
 | `set_password` / `touch_last_login` **[done]** | rows affected | UPDATE. |
+| `get_any_by_id` **[done]** | `Row` or `None` | Like `get_by_id` but also finds deactivated users — for the admin panel. |
+| `list_users(limit)` / `role_counts()` / `admin_count()` **[done]** | rows / int | Admin panel: users with playlist and like counts (correlated subqueries), users per role, number of admins. |
+| `promote_to_admin(id)` **[done]** | rows affected | Sets `is_staff` and `is_superuser`. |
+| `set_account_type(id, role)` / `set_active(id, bool)` **[done]** | rows affected | UPDATE through `_execute_user_update`, which turns the `keep_last_admin_trigger` error (SQLSTATE `CR001`) into **`LastAdminError`**. Deactivating also logs the user out everywhere via `user_deactivated_trigger`. |
 
 **`AuthUser`** — the object on `request.user`; identity and role only, no write
 methods. `role` resolves admin from `is_staff`/`is_superuser`, else
@@ -130,7 +152,7 @@ methods. `role` resolves admin from `is_staff`/`is_superuser`, else
 | `create(user_id, ua, ip)` **[done]** | session key | 32 random bytes from `secrets` → 64 hex chars, INSERTed with a 14-day expiry. |
 | `get_user_id(key)` **[done]** | id or `None` | `WHERE session_key = %s AND expires_at > NOW()` — expiry enforced in SQL. |
 | `destroy(key)` **[done]** | rows deleted | **DELETEs the row** — what makes logout a genuine invalidation (§3.1) rather than a frontend redirect. |
-| `destroy_all_for_user(id)` **[done]** | rows deleted | Log out everywhere, e.g. after a password change. |
+| `destroy_all_for_user(id)` **[done]** | rows deleted | Log out everywhere. Used by `purge_sessions --user`; deactivation no longer needs it because `user_deactivated_trigger` does it in the database. |
 | `purge_expired()` **[done]** | rows deleted | Housekeeping sweep. |
 | `set_cookie` / `clear_cookie` **[done]** | response | `HttpOnly` (JS can't read it, so XSS can't steal it), `SameSite=Lax`. Set `secure=True` once served over HTTPS. |
 
@@ -138,7 +160,10 @@ methods. `role` resolves admin from `is_staff`/`is_superuser`, else
 
 - **`SessionAuthMiddleware`** **[done]** — reads the cookie, resolves it through
   `app_session`, attaches `request.user`. Role comes from the database row,
-  never from the cookie.
+  never from the cookie. It is also a **site-wide login gate**: any request
+  without a valid cookie is redirected to `/login/`, except `/login`,
+  `/register`, `/admin`, static and media paths. **Known issue:** `/api/` is not
+  on that list, so the token-based API (§6h) is unreachable — see §9.
 - **`auth_context`** **[done]** — context processor providing `user`,
   `is_admin`, `is_artist`.
 - **`login_required`** **[done]** — 401 JSON for API callers, redirect for browsers.
@@ -152,7 +177,8 @@ methods. `role` resolves admin from `is_staff`/`is_superuser`, else
 
 | Function | Mechanism |
 |---|---|
-| `get_or_create_artist / _genre / _era` **[done]** | SELECT, else `INSERT ... ON CONFLICT DO NOTHING RETURNING id`, else re-SELECT. |
+| `get_or_create_artist` **[done]** | SELECT by name, else `INSERT ... RETURNING id`. |
+| `get_or_create_genre / _era` **[done]** | SELECT, else `INSERT ... ON CONFLICT (name) DO NOTHING RETURNING id`, else re-SELECT — safe if two imports create the same name at once. |
 | `find_album(title, artist_id)` **[done]** | Joins `music_albumcredit` so lookup is per artist — matching on title alone would merge every "Greatest Hits" from different artists. |
 | `create_album`, `set_album_cover_if_blank`, `clear_album_covers` **[done]** | INSERT / conditional UPDATE / `UPDATE ... WHERE id = ANY(%s)`. |
 | `add_album_credit`, `add_track_credit` **[done]** | `INSERT ... SELECT ... WHERE NOT EXISTS` — insert-if-absent without needing a unique constraint. |
@@ -164,8 +190,115 @@ methods. `role` resolves admin from `is_staff`/`is_superuser`, else
 | `count(table)` **[done]** | `COUNT(*)`; `table` is checked against a hard-coded allowlist and raises otherwise — never user input. |
 | `flush_catalogue()` **[done]** | DELETEs in foreign-key-safe order. Users untouched. |
 
-All eight management commands and both services (`jamendo.py`, `composers.py`)
-go through this module.
+The seeding and clean-up commands (§6g) and the `jamendo.py` / `composers.py`
+services go through this module.
+
+---
+
+## 6b. `music/db/artists.py` — artist pages
+
+Every read counts only approved tracks (`APPROVED_ONLY`).
+
+| Function | Returns | Mechanism |
+|---|---|---|
+| `get(id)` **[done]** | `Row` or `None` | Artist plus the username that claimed it (`LEFT JOIN music_user`). |
+| `stats(id)` **[done]** | `Row` | Three scalar subqueries in one SELECT: tracks, albums, followers. |
+| `roles_played(id)` / `genres(id)` **[done]** | rows | `GROUP BY` role / genre with `COUNT(DISTINCT t.id)`. |
+| `tracks(id, limit, offset)` **[done]** | rows | Credited tracks, newest album first, then `tracks.attach_artists`. |
+| `albums(id)` **[done]** | rows | `COUNT(...) FILTER (WHERE approved)` with `HAVING > 0`, so albums with no public track are hidden. |
+| `is_following(user, artist)` **[done]** | `bool` | `SELECT 1 ... LIMIT 1`. |
+| `toggle_follow(user, artist)` **[done]** | `bool` | `SELECT toggle_follow(...)` (PL/pgSQL). The single follow implementation — the old duplicate in `social.py` is gone. |
+| `find_by_name(name)` | `Row` | Currently unused. |
+
+## 6c. `music/db/playlists.py`
+
+| Function | Returns | Mechanism |
+|---|---|---|
+| `get_owned(id, user)` **[done]** | `Row` or `None` | `WHERE id = %s AND user_id = %s` — the ownership check behind every playlist edit. |
+| `list_for_user(user)` **[done]** | rows | `LEFT JOIN ... GROUP BY` so empty playlists show 0 tracks. |
+| `tracks_in(id, user)` **[done]** | rows | Ordered by `position`; checks ownership and approval in the same query. |
+| `create`, `set_visibility`, `liked_ids` **[done]** | id / rows affected / ids | INSERT ... RETURNING / owner-scoped UPDATE / SELECT. |
+
+## 6d. `music/db/uploads.py` — Artist Studio and approvals
+
+| Function | Returns | Mechanism |
+|---|---|---|
+| `profile_for_user` / `get_or_create_profile` / `update_profile` **[done]** | row / id / rows | Links a user to an artist row: reuses their own, else claims an unclaimed artist with the same name, else creates one. |
+| `create_album(...)` **[done]** | id | INSERT album (with `created_by_id`) + primary album credit. |
+| `albums_for_user` / `tracks_for_user` / `counts_for_user` **[done]** | rows / row | `COUNT(*) FILTER (WHERE approval_status = ...)` gives total, approved, pending, rejected in one pass. |
+| `find_own_album` / `find_own_track` **[done]** | `Row` or `None` | Ownership checks (`created_by_id` / `submitted_by_id`). |
+| `create_pending_track(...)` **[done]** | id | INSERT as `pending` + primary credit. Leaves `track_number` NULL so `track_number_trigger` numbers it. |
+| `set_audio_url` **[done]** | rows affected | Points the track at `/track/<id>/audio/`. |
+| `delete_own_track(id, user)` **[done]** | rows deleted | Clears credits, playlist entries, likes, history and group entries (table names from a fixed tuple), then the track. |
+| `review_queue(status)` / `pending_count()` **[done]** | rows / int | Admin approval queue, oldest first. |
+| `set_review(track, status, admin, note)` **[done]** | — | `CALL review_track(...)` (PL/pgSQL). |
+
+## 6e. `music/db/audio.py` — uploaded audio stored in the database
+
+Audio bytes live in `music_trackaudio.content` (`bytea`), so every server sees
+the same files.
+
+| Function | Returns | Mechanism |
+|---|---|---|
+| `store(track, bytes, type, name)` **[done]** | rows | Replaces any existing row for the track. |
+| `meta(track)` **[done]** | `Row` | Size, type, and the track's approval status and uploader, for the permission check. |
+| `chunk(track, offset, length)` **[done]** | `bytes` | `SUBSTRING(content FROM %s FOR %s)` — reads only the requested byte range, so streaming never loads the whole file. |
+| `delete`, `exists`, `total_bytes`, `content_type_for` **[done]** | — | Housekeeping. |
+
+## 6f. `music/db/social.py` — history, follows, groups
+
+| Function | Returns | Mechanism |
+|---|---|---|
+| `record_play_once(user, track)` **[done]** | `bool` | `SELECT record_play(...)` (PL/pgSQL) — skips a repeat within 30 s. |
+| `get_play_history(user, limit)` **[done]** | rows | `SELECT * FROM get_play_history(...)` — a table-returning PL/pgSQL function. |
+| `get_followed_artists(user)` **[done]** | rows | JOIN follow → artist, newest first. |
+| `create_group`, `get_group`, `update_group_visibility` **[done]** | id / row / — | INSERT ... RETURNING / SELECT with owner name / UPDATE. |
+| `list_groups(user, search)` **[done]** | rows | Public groups plus the user's own, average rating via `LEFT JOIN ... AVG`, optional `ILIKE` search (parameterised); own groups sorted first. |
+| `add_group_track` / `add_group_playlist` **[done]** | rows | Check-then-INSERT. |
+| `group_tracks` / `group_playlists` / `group_reviews` **[done]** | rows | `STRING_AGG` joins artist names into one string. |
+| `addable_tracks` / `addable_playlists` / `track_is_addable` / `playlist_is_addable` **[done]** | rows / `bool` | `NOT IN (subquery)` excludes what's already in the group; playlists must be the user's own or public. |
+| `remove_group_track` / `remove_group_playlist` / `delete_own_review` **[done]** | rows deleted | Owner- or reviewer-scoped DELETE. |
+| `add_group_review(...)` **[done]** | — | `CALL save_group_review(...)` (PL/pgSQL) — enforces 1-5 stars, one review per user. |
+| `delete_group(group, owner)` **[done]** | 1 or 0 | Ownership check, then `CALL delete_group_proc(...)`. |
+
+## 6g. Services and management commands
+
+**Services** (`music/services/`):
+- `search.py` — see §3.
+- `jamendo.py` — fetches tracks from the Jamendo API and imports them through `catalog.py`.
+- `composers.py` — recognises classical composers in titles and credits them as writers.
+- `imagehash.py` — perceptual hashing to spot the same cover art reused across albums.
+- `console.py` — safe printing of non-ASCII titles on Windows consoles.
+
+**Management commands** (`python manage.py <name>`):
+
+| Command | Purpose |
+|---|---|
+| `apply_schema` | Runs `docs/schema/*.sql` in order (§7). |
+| `seed_data` / `seed_classical` | Import tracks from Jamendo. |
+| `backfill_composers` / `backfill_track_numbers` | Fill in composer credits / number album tracks 1..n. |
+| `clean_eras` / `clean_titles` / `prune_genres` / `dedupe_covers` | Catalogue clean-up. |
+| `import_local_audio` | Moves audio still in `media/` into `music_trackaudio`. |
+| `create_admin` | Creates or promotes an admin account. |
+| `purge_sessions` | Deletes expired sessions (`--user` logs one user out everywhere). |
+
+## 6h. `music/api/` — JSON API
+
+A second way into the app that answers JSON instead of HTML, authenticated with
+a **Bearer token** (the same `app_session` key, sent as
+`Authorization: Bearer <key>`) instead of a cookie. 21 routes under `/api/`.
+
+- **`helpers.py`** — `@api(methods)` (method check, token lookup, errors → JSON),
+  `@auth_required`, `@role_required`, response helpers (`ok`, `created`,
+  `not_found`, `conflict`, ...), and `track_json` / `user_json` / ... serialisers.
+- **`views.py`** — auth (`register`, `login`, `logout`, `me`); catalogue
+  (`tracks`, `tracks/<id>`, `genres`, `artists/<id>`); playlists (list, create,
+  rename, delete, add/remove track); likes and follows (`PUT` to add, `DELETE`
+  to remove); studio (artist's tracks, delete); admin (users, change role or
+  active, approval queue, approve/reject).
+
+It reuses the same `db/` functions and PL/pgSQL routines as the website.
+**Currently unreachable** because of the middleware issue in §5 and §9.
 
 ---
 
@@ -174,19 +307,29 @@ go through this module.
 `manage.py migrate` is gone with the ORM. Schema now lives in DDL scripts, which
 §2.2 expects the repository to have anyway.
 
-- `docs/schema/*.sql` — source of truth. Currently `001_app_session.sql`.
-- `manage.py apply_schema` **[done]** — runs them in filename order; every script
-  is written re-runnable (`CREATE TABLE IF NOT EXISTS`).
-- `docs/legacy_migrations_40pct/` — the 40% milestone's ORM migrations, retired.
-  They created the live `music_*` tables but no longer run.
+- `docs/schema/*.sql` — source of truth, applied in filename order:
 
-**[todo]** Dump the existing `music_*` tables to `docs/schema/000_core.sql` so a
-fresh database can be built from scripts alone rather than relying on the tables
-already existing in Neon.
+  | Script | Contents |
+  |---|---|
+  | `000_core.sql` | All `music_*` tables, keys, unique/check constraints and indexes |
+  | `001_app_session.sql` | `app_session` (login sessions) |
+  | `002_artist_uploads.sql` | Approval columns on tracks, album ownership |
+  | `003_db_features.sql` | Track audit trigger, `get_artist_track_count`, `delete_album_proc`, playlist position trigger |
+  | `004_track_audio.sql` | `music_trackaudio` (audio bytes in the database) |
+  | `005_business_rules.sql` | Track number, deactivation logout and last-admin triggers; `toggle_like`, `toggle_follow`; `review_track` |
+  | `006_social_rules.sql` | `save_group_review`, `record_play`, `get_play_history`, `delete_group_proc` |
+
+- `manage.py apply_schema` **[done]** — runs them in order; every script is
+  re-runnable (`IF NOT EXISTS`, `CREATE OR REPLACE`, `DROP TRIGGER IF EXISTS`).
+  A fresh database can be built from these scripts alone.
+- `docs/legacy_migrations_40pct/` — the 40% milestone's ORM migrations, retired.
 
 ---
 
 ## 8. Verification performed
+
+*Recorded when the ORM was removed. Tests of the PL/pgSQL routines are
+summarised under §8b.*
 
 **Filtering** — 26 filter combinations compared before/after conversion, all
 match. (`q=rock` differs only because the old baseline was recorded when the DB
@@ -232,11 +375,44 @@ ORM versions left: `prune_genres` "every genre already has 10+",
 
 ---
 
-## 9. Not yet built (guideline gaps)
+## 8b. Database-side logic (PL/pgSQL)
+
+Defined in `docs/schema/003_db_features.sql`, `005_business_rules.sql` and `006_social_rules.sql`.
+
+| Object | Kind | What it does | Called from |
+|---|---|---|---|
+| `track_audit_trigger` → `audit_track_change_fn()` | trigger | Logs track INSERT, approval status changes and DELETE into `music_track_audit` | automatic |
+| `playlisttrack_position_trigger` | trigger | Fills `position` as last + 1, locking the playlist so concurrent adds take turns | automatic |
+| `track_number_trigger` | trigger | Fills `track_number` as last in album + 1, same locking | automatic (`uploads.create_pending_track`) |
+| `user_deactivated_trigger` | trigger | Deletes every `app_session` row when `is_active` goes TRUE → FALSE | automatic (`users.set_active`) |
+| `keep_last_admin_trigger` | trigger | Refuses demoting, deactivating or deleting the last active admin (SQLSTATE `CR001` → `users.LastAdminError`) | automatic |
+| `get_artist_track_count(artist)` | function | Approved tracks credited to the artist, each counted once | `views_artist.artist_studio` |
+| `toggle_like(user, track)` | function | Likes or unlikes; returns TRUE if now liked | `views.toggle_like` |
+| `toggle_follow(user, artist)` | function | Follows or unfollows; returns TRUE if now following | `artists.toggle_follow` |
+| `delete_album_proc(album, user)` | procedure | Ownership check, then deletes the album, its tracks and every row pointing at them | `views_artist.artist_delete_album` |
+| `review_track(track, status, admin, note)` | procedure | Validates status, reviewer and track, then records the decision | `uploads.set_review` |
+| `record_play(user, track, window)` | function | Adds a play unless the same track was played in the last `window` seconds; returns TRUE if added | `social.record_play_once` |
+| `get_play_history(user, limit)` | function (returns a table) | Recent plays with album, cover and artist names, newest first | `social.get_play_history` |
+| `save_group_review(group, user, rating, text)` | procedure | Enforces 1-5 stars, then adds or replaces the user's review | `social.add_group_review` |
+| `delete_group_proc(group, owner)` | procedure | Ownership check, then deletes the group's tracks, playlists, reviews and the group | `social.delete_group` |
+
+**Verified** against the live database inside transactions that were rolled
+back: every refusal path (wrong owner, bad status or rating, non-admin reviewer,
+last admin) raises; deletes leave no orphan rows; two simultaneous playlist adds
+or play records take turns (the second waits on the lock); `get_play_history`
+returns exactly the rows of the query it replaced.
+
+---
+
+## 9. Guideline status and open issues
 
 | Requirement | Status |
 |---|---|
-| §3.2 role separation — distinct capability per role, cross-role blocked | **[todo]** decorators exist and are wired to `login_required`; no view yet uses `role_required`, and there is no admin-only or artist-only feature to demonstrate. |
-| §3.2 object-level ownership checks | **[done]** for playlists (`WHERE id = %s AND user_id = %s`); needs auditing across every other user-owned record. |
-| §3.3 REST endpoints for ≥20% of features | **[todo]** only `toggle_like` and `add_to_playlist` answer JSON today. |
-| §3.4 role-aware interface | **[todo]** the UI is identical for listener and artist. |
+| §3.2 role separation — distinct capability per role, cross-role blocked | **[done]** Studio views require artist or admin; approvals and the admin panel require admin (`role_required`, 403 otherwise). |
+| §3.2 object-level ownership checks | **[done]** playlists (`user_id`), albums (`created_by_id`), tracks (`submitted_by_id`), groups (`owner_id`), reviews (`reviewer_id`). `delete_album_proc` and `delete_group_proc` re-check ownership inside the database. |
+| §3.3 REST endpoints for ≥20% of features | **[built, blocked]** `music/api/` has 21 routes (§6h), but `SessionAuthMiddleware` redirects `/api/` to the login page. **[todo]** add `/api/` to the middleware's allowed paths. |
+| §3.4 role-aware interface | **[done]** `auth_context` supplies `is_admin` / `is_artist`; the nav bar, home page and artist page show Studio and admin links only to those roles. |
+
+**Other open items**
+- `get_artist_track_count()` is computed for the Studio page but no template displays it yet.
+- Unused Python functions: `artists.find_by_name`, `tracks.tracks_matching_artist_exact`, `catalog.top_artists_by_likes`, `jamendo.decade_label`, `composers.period_for`.

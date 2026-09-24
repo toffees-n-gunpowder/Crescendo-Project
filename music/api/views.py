@@ -11,22 +11,25 @@ from music.db import tracks as track_db
 from music.forms import RegistrationForm
 from music.services import search as search_service
 
-
+# POST means the user sends something which the programme will work on
+# @api(method) is defined in helpers.py 
+# here POST does the work by taking username and password from user and logging them in
 @api('POST')
 def register(request):
+    #body(request) checks whether the inputs are coherent or not 
     data, err = body(request)
     if err:
         return err
-
+# uses forms.py 
     form = RegistrationForm({
         'username': data.get('username', ''),
         'email': data.get('email', ''),
-        'account_type': data.get('account_type', 'listener'),
+        'account_type': data.get('account_type', 'listener'),#by default listener if not stated
         'password1': data.get('password', data.get('password1', '')),
         'password2': data.get('password_confirm', data.get('password2',
                               data.get('password', ''))),
     })
-
+#checks the validity of the form
     if not form.is_valid():
         messages = [
             str(msg)
@@ -56,14 +59,18 @@ def login(request):
         return missing
 
     user = users.authenticate(data['username'].strip(), data['password'])
+    #authenticate is located in auth/users, authenticates by using hashing.verify
     if not user:
         return unauthorized('Invalid username or password.')
-
+    
+#token is made here after logging in
     token = sessions.create(
         user.id,
         user_agent=request.META.get('HTTP_USER_AGENT', ''),
         ip_address=request.META.get('REMOTE_ADDR', ''),
     )
+
+#stores the login time as to verify against the 14 day expiry rule
     users.touch_last_login(user.id)
 
     return ok({
@@ -75,12 +82,14 @@ def login(request):
 
 
 @api('POST')
-@auth_required
+@auth_required  # checks whether already logged in
 def logout(request):
-    token = request.headers.get('authorization', '')[7:].strip()
-    sessions.destroy(token)
-    return no_content()
+    token = request.headers.get('authorization', '')[7:].strip() #strips away 'Bearer' from the token leaving only the code
+    sessions.destroy(token) #successfully logged out
+    return no_content() #"done, nothing to send back."
 
+#this only logs out this one device. If you're logged in on your phone and laptop
+#the other one stays logged in, because each has its own row in app_session
 
 @api('GET')
 @auth_required
@@ -91,7 +100,7 @@ def me(request):
         'email': request.api_user.email,
         'role': request.api_user.role,
     }})
-
+#this is checked when the app opens to identify what role a user gets
 
 @api('GET')
 def track_list(request):
@@ -224,15 +233,14 @@ def playlist_tracks(request, playlist_id):
     if already:
         return conflict('That track is already in this playlist.')
 
-    position = (core.scalar(
-        'SELECT COALESCE(MAX(position), 0) + 1 FROM music_playlisttrack WHERE playlist_id = %s',
-        [playlist_id]) or 1)
-    core.execute(
+    # position is filled in by playlisttrack_position_trigger
+    position = core.scalar(
         """
-        INSERT INTO music_playlisttrack (playlist_id, track_id, position, added_at)
-        VALUES (%s, %s, %s, NOW())
+        INSERT INTO music_playlisttrack (playlist_id, track_id, added_at)
+        VALUES (%s, %s, NOW())
+        RETURNING position
         """,
-        [playlist_id, track_id, position])
+        [playlist_id, track_id])
 
     return created({'playlist_id': playlist_id, 'track_id': track_id,
                     'position': position},
@@ -362,17 +370,19 @@ def admin_user_detail(request, user_id):
         if role == users.ROLE_ADMIN:
             users.promote_to_admin(target.id)
         else:
-            if (target.is_staff or target.is_superuser) and users.admin_count() <= 1:
+            try:
+                users.set_account_type(target.id, role)
+            except users.LastAdminError:
                 return conflict('That is the only admin account.')
-            users.set_account_type(target.id, role)
 
     if 'is_active' in data:
         active = str(data['is_active']).lower() in ('1', 'true', 'yes')
         if target.id == request.api_user.id and not active:
             return forbidden('You cannot deactivate your own account.')
-        users.set_active(target.id, active)
-        if not active:
-            sessions.destroy_all_for_user(target.id)
+        try:
+            users.set_active(target.id, active)
+        except users.LastAdminError:
+            return conflict('That is the only active admin account.')
 
     return ok({'user': user_json(users.get_any_by_id(user_id))})
 

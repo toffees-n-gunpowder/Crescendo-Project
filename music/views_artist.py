@@ -94,7 +94,6 @@ def artist_upload(request):
             audio_url='',
             submitted_by=request.user.id,
             artist_id=profile_id,
-            track_number=uploads.next_track_number(album_id),
         )
 
         audio_db.store(track_id, content, content_type, upload.name)
