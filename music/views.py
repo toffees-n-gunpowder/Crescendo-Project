@@ -98,7 +98,6 @@ def eras(request):
     total_tracks = db_core.scalar("SELECT COUNT(*) FROM music_track")
     era_list = catalog.era_counts()
     
-    # Let's get a random cover URL for each era (if tracks exist)
     for era in era_list:
         era.cover_url = db_core.scalar("""
             SELECT a.cover_url

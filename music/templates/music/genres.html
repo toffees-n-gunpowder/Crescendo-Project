@@ -130,6 +130,9 @@
 
         <div class="d-flex align-items-center">
             {% if user.is_authenticated %}
+                <a href="{% url 'eras' %}" class="btn btn-outline-spotify btn-sm me-2 border-0 text-white">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Eras
+                </a>
                 <a href="{% url 'playlists' %}" class="btn btn-outline-spotify btn-sm me-2 border-0 text-white">
                     <i class="fa-solid fa-list"></i> Playlists
                 </a>
@@ -139,6 +142,9 @@
                 {% include "music/partials/user_nav.html" %}
                 
             {% else %}
+                <a href="{% url 'eras' %}" class="btn btn-outline-spotify btn-sm me-3 border-0 text-white">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Eras
+                </a>
                 <a href="{% url 'register' %}" class="text-subdued text-decoration-none fw-bold me-4">Sign Up</a>
                 <a href="{% url 'login' %}" class="btn btn-spotify btn-sm">Log In</a>
             {% endif %}
