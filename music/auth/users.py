@@ -1,3 +1,4 @@
+import psycopg2
 from django.db import DatabaseError
 
 from music.auth import hashing
@@ -207,8 +208,9 @@ def _execute_user_update(sql, params):
     try:
         return core.execute(sql, params)
     except DatabaseError as exc:
-        if getattr(exc.__cause__, 'pgcode', None) == LAST_ADMIN_SQLSTATE:
-            raise LastAdminError(str(exc.__cause__.diag.message_primary)) from exc
+        cause = exc.__cause__
+        if isinstance(cause, psycopg2.Error) and cause.pgcode == LAST_ADMIN_SQLSTATE:
+            raise LastAdminError(str(cause.diag.message_primary)) from exc
         raise
 
 

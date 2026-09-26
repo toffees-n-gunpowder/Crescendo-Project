@@ -158,6 +158,8 @@ def login_user(request):
         user = users.authenticate(username, password)
 
         if user:
+            # Logging in again from a new tab replaces the old session
+            sessions.destroy(getattr(request, 'session_key', None))
             key = sessions.create(
                 user.id,
                 user_agent=request.META.get('HTTP_USER_AGENT', ''),
